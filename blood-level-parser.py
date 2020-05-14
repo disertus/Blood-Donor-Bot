@@ -30,7 +30,6 @@ class TelegramBot:
     # Link to the newly-generated bot: t.me/donor_notify_bot
     telegram_bot_token = cfg.token
 
-
     def start_message(self):
         pass
 
@@ -41,8 +40,14 @@ class TelegramBot:
         # TODO: Optional, users may be unwilling to give up personal information
         pass
 
+    def check_location(self):
+        # TODO: Optional, users may be unwilling to give up personal information
+        pass
+
     def check_blood_availability(self):
         pass
 
     def notify_if_blood_is_low(self):
+        notification_text = f'{bloodtype} is low - we need YOU to save lives'
+        incentive_text = 'Short reminder: Blood donation will give you 2 days off and a financial remuneration'
         pass
