@@ -8,3 +8,4 @@ Bot's notification system should raise people's awareness about the existing sho
 - inform them once there is a lack of donors' blood at the blood bank (if their blood type is required)
 - collect chronological data on the availability of specific blood types
 
+This bot could become scalable and be used by blood banks in various cities. 
