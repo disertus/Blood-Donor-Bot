@@ -7,9 +7,8 @@ import requests
 class Parser:
     """Parses the page and saves the data that has been collected into the mysqldb"""
 
-    def __init__(self, url: str, db_credentials: tuple):
+    def __init__(self, url: str):
         self.page_url = url
-        self.mysql_credentials = db_credentials
 
     @lru_cache(maxsize=128)
     def parse_a_page(self):
@@ -30,6 +29,18 @@ class Parser:
     def tag_text_into_tuple(self, tag1, tag2=None, tag3=None):
         parsed_text = (self.clear_html_tags(tag1), self.clear_html_tags(tag2), self.clear_html_tags(tag3))
         return parsed_text
+
+
+class MySQLdb:
+
+    def __init__(self, db_credentials: tuple):
+        self.mysql_credentials = db_credentials
+
+    def create_database(self):
+        pass
+
+    def create_table(self):
+        pass
 
     def save_to_mysqldb(self):
         # TODO: use the same approach as in covid, but with string concatenation, hide db credentials inside cfg module
@@ -73,3 +84,5 @@ class TelegramBot:
 
 parser = Parser('http://kmck.kiev.ua/', None)
 parser.tag_text_into_tuple('h3', tag2='h4', tag3='p')
+
+mysql_db = MySQLdb(cfg.db_credentials)
