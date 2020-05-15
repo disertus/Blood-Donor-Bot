@@ -21,13 +21,11 @@ class Parser:
         soup = BeautifulSoup(open_url, 'lxml')
         return soup
 
-    def clear_html_tags(self) -> list:
+    def clear_html_tags(self, tag: str) -> list:
         # Search inside <div class="vc_row wpb_row vc_inner vc_row-fluid">
         # Two separate columns have similar structure - data can be collected through indexing of elements
-        parsed_h3 = [item.string for item in self.parse_the_page().find_all('h3', limit=2)]
-        parsed_h4 = [item.string for item in self.parse_the_page().find_all('h4')]
-        parsed_p = [item.string for item in self.parse_the_page().find_all('p')[7:15]]
-        return parsed_h3, parsed_h4, parsed_p
+        parsed_tag = [item.string for item in self.parse_the_page().find_all(tag)]
+        return parsed_tag
 
     def save_to_mysqldb(self):
         # TODO: use the same approach as in covid, but with string concatenation, hide db credentials inside cfg module
