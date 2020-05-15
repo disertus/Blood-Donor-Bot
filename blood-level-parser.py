@@ -12,7 +12,7 @@ class Parser:
         self.mysql_credentials = db_credentials
 
     @lru_cache(maxsize=128)
-    def parse_the_page(self):
+    def parse_a_page(self):
         page_headers = {
             'User-Agent' :
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/81.0.4044.138 Chrome/81.0.4044.138 Safari/537.36"
@@ -26,6 +26,10 @@ class Parser:
         # Two separate columns have similar structure - data can be collected through indexing of elements
         parsed_tag = [item.string for item in self.parse_the_page().find_all(tag)]
         return parsed_tag
+
+    def tag_text_into_tuple(self, tag1, tag2=None, tag3=None):
+        parsed_text = (self.clear_html_tags(tag1), self.clear_html_tags(tag2), self.clear_html_tags(tag3))
+        return parsed_text
 
     def save_to_mysqldb(self):
         # TODO: use the same approach as in covid, but with string concatenation, hide db credentials inside cfg module
@@ -67,4 +71,5 @@ class TelegramBot:
         pass
 
 
-parser = Parser('http://kmck.kiev.ua/', None).clear_html_tags()
+parser = Parser('http://kmck.kiev.ua/', None)
+parser.tag_text_into_tuple('h3', tag2='h4', tag3='p')
