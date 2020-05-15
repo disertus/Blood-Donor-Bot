@@ -23,11 +23,18 @@ class Parser:
     def clear_html_tags(self, tag: str) -> list:
         # Search inside <div class="vc_row wpb_row vc_inner vc_row-fluid">
         # Two separate columns have similar structure - data can be collected through indexing of elements
-        parsed_tag = [item.string for item in self.parse_the_page().find_all(tag)]
+        parsed_tag = [item.string for item in self.parse_a_page().find_all(tag)]
         return parsed_tag
 
-    def tag_text_into_tuple(self, tag1, tag2=None, tag3=None):
-        parsed_text = (self.clear_html_tags(tag1), self.clear_html_tags(tag2), self.clear_html_tags(tag3))
+    def tag_text_into_tuple(self, tag1, tag2=None):
+        rh_plus = ' (+)'
+        rh_minus = ' (-)'
+        parsed_text = (
+            self.clear_html_tags(tag1)[:4],
+            self.clear_html_tags(tag1)[4:],
+            [f'{item}{rh_plus}' for item in self.clear_html_tags(tag2)[7:11]],
+            [f'{item}{rh_minus}'for item in self.clear_html_tags(tag2)[11:15]]
+        )
         return parsed_text
 
 
@@ -35,6 +42,7 @@ class MySQLdb:
 
     def __init__(self, db_credentials: tuple):
         self.mysql_credentials = db_credentials
+        self.connection = None
 
     def create_database(self):
         pass
@@ -82,7 +90,7 @@ class TelegramBot:
         pass
 
 
-parser = Parser('http://kmck.kiev.ua/', None)
-parser.tag_text_into_tuple('h3', tag2='h4', tag3='p')
+parser = Parser('http://kmck.kiev.ua/')
+print(parser.tag_text_into_tuple('h4', tag2='p'))
 
 mysql_db = MySQLdb(cfg.db_credentials)
