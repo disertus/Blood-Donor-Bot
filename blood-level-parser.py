@@ -26,11 +26,6 @@ class Parser:
         parsed_tag = [item.string for item in self.parse_a_page().find_all(tag)]
         return parsed_tag
 
-    def tag_text_into_tuple(self, tag1, tag2=None) -> zip:
-        rh_positive = zip(self.clear_html_tags(tag2)[7:11], self.clear_html_tags(tag1)[:4])
-        rh_negative = zip(self.clear_html_tags(tag2)[11:15], self.clear_html_tags(tag1)[4:])
-        return rh_positive, rh_negative
-
 
 class MySQLdb:
 
@@ -50,7 +45,7 @@ class MySQLdb:
 
 
 class DataFrame:
-    def convert_to_dataframe(self):
+    def convert_into_dataframe(self):
         # TODO: read the data from the mysqldb / or just use the latest collected data
         pass
 
@@ -85,6 +80,6 @@ class TelegramBot:
 
 
 parser = Parser('http://kmck.kiev.ua/')
-print(parser.tag_text_into_tuple('h4', tag2='p'))
+parser.clear_html_tags('h4')
 
 mysql_db = MySQLdb(cfg.db_credentials)
