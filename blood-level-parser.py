@@ -19,15 +19,15 @@ class Parser:
         } # headers are necessary to emulate a 'live user' connection
         open_url = requests.get(self.page_url, headers=page_headers).text
         soup = BeautifulSoup(open_url, 'lxml')
-        print(soup)
         return soup
 
-    def clear_html_tags(self, tags: dict) -> dict:
+    def clear_html_tags(self) -> list:
         # Search inside <div class="vc_row wpb_row vc_inner vc_row-fluid">
         # Two separate columns have similar structure - data can be collected through indexing of elements
-
-        pass
-
+        parsed_h3 = [item.string for item in self.parse_the_page().find_all('h3', limit=2)]
+        parsed_h4 = [item.string for item in self.parse_the_page().find_all('h4')]
+        parsed_p = [item.string for item in self.parse_the_page().find_all('p')[7:15]]
+        return parsed_h3, parsed_h4, parsed_p
 
     def save_to_mysqldb(self):
         # TODO: use the same approach as in covid, but with string concatenation, hide db credentials inside cfg module
@@ -69,4 +69,4 @@ class TelegramBot:
         pass
 
 
-parser = Parser('http://kmck.kiev.ua/', None).parse_the_page()
+parser = Parser('http://kmck.kiev.ua/', None).clear_html_tags()
