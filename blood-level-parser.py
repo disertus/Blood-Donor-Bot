@@ -26,16 +26,10 @@ class Parser:
         parsed_tag = [item.string for item in self.parse_a_page().find_all(tag)]
         return parsed_tag
 
-    def tag_text_into_tuple(self, tag1, tag2=None):
-        rh_plus = ' (+)'
-        rh_minus = ' (-)'
-        parsed_text = (
-            self.clear_html_tags(tag1)[:4],
-            self.clear_html_tags(tag1)[4:],
-            [f'{item}{rh_plus}' for item in self.clear_html_tags(tag2)[7:11]],
-            [f'{item}{rh_minus}'for item in self.clear_html_tags(tag2)[11:15]]
-        )
-        return parsed_text
+    def tag_text_into_tuple(self, tag1, tag2=None) -> zip:
+        rh_positive = zip(self.clear_html_tags(tag2)[7:11], self.clear_html_tags(tag1)[:4])
+        rh_negative = zip(self.clear_html_tags(tag2)[11:15], self.clear_html_tags(tag1)[4:])
+        return rh_positive, rh_negative
 
 
 class MySQLdb:
