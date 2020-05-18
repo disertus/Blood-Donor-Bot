@@ -59,29 +59,33 @@ mysql_db = MySQLdb(config.db_credentials)
 
 bot = telebot.TeleBot(config.token)
 user = bot.get_me()
-print(user)
+
+
+@bot.message_handler(commands=['help'])
+def bot_info(message):
+    upd = '/update - актуальні запаси крові'
+    strt = '/start - пройти опитування знову'
+    inf = '/info - довідкова інформація'
+    bot.send_message(message.chat.id, f'{strt}\n{upd}\n{inf}')
+
 
 
 @bot.message_handler(commands=['start'])
 def welcome_message(message):
-    msg = bot.send_message(message.chat.id, 'Привіт! Готовий рятувати життя? \nОбери свою групу крові: ')
-
-    user_nickname = message.chat.username  # returns the Telegram @username of the user
-    print(f'@{user_nickname} logged in on {datetime.date.today()}')  # TODO: create a log file recording all the actions
-    # TODO: send the info about the user to MySQL
-
+    print(f'@{message.chat.username} logged in on {datetime.date.today()}')  # returns the Telegram @username of the user
     blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
     blood_type1 = telebot.types.KeyboardButton('I - перша')
     blood_type2 = telebot.types.KeyboardButton('II - друга')
     blood_type3 = telebot.types.KeyboardButton('III - третя')
     blood_type4 = telebot.types.KeyboardButton('IV - четверта')
-
     blood_types_keyboard.row(blood_type1, blood_type2)
     blood_types_keyboard.row(blood_type3, blood_type4)
-    msg = bot.send_message(message.chat.id, 'Обери свою групу крові серед наведених варіантів: ',
-                     reply_markup=blood_types_keyboard)
 
+    msg = bot.send_message(message.chat.id, 'Привіт! Готовий рятувати життя? \nВкажи свою групу крові: ',
+                     reply_markup=blood_types_keyboard)
     bot.register_next_step_handler(msg, ask_blood_rh)
+    # TODO: create a log file recording all the actions
+    # TODO: send the info about the user to MySQL
 
 
 def ask_blood_rh(message):
@@ -90,7 +94,7 @@ def ask_blood_rh(message):
     blood_rh_minus = telebot.types.KeyboardButton('(–)')
     blood_types_keyboard.row(blood_rh_plus)
     blood_types_keyboard.row(blood_rh_minus)
-    msg = bot.send_message(message.chat.id, 'Дякую! А зараз вкажи свій резус-фактор:',
+    msg = bot.send_message(message.chat.id, 'А тепер вкажи свій резус-фактор:',
                      reply_markup=blood_types_keyboard)
     print(f'Blood type: {message.text}')
     bot.register_next_step_handler(msg, thank_you_for_answers)
@@ -99,8 +103,9 @@ def ask_blood_rh(message):
 def thank_you_for_answers(message):
     if (message.text == '(+)') or (message.text == '(–)'):
         emoji = u'\U0001F618'
+        quest = 'Залишились питання? Тисни /help'
         bot.send_message(message.chat.id,
-                         f'Дякую!\nТепер я надсилатиму тобі сповіщення, якщо виникне необхідність у крові твоєї групи! {emoji}')
+        f'All done!\nТепер я надсилатиму тобі сповіщення, якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}')
         print(f'Blood Rh: {message.text}')
     else:
         bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
@@ -115,6 +120,9 @@ def awaiting_functions(message):
                      f'I (–) : {blood_level[4]}\nII (–) : {blood_level[5]}\nIII (–) : {blood_level[6]}\nIV (–) : {blood_level[7]}')
     # TODO: apply markup formatting to the text
 
+@bot.message_handler(commands=['info'])
+def donor_info(message):
+    bot.send_message(message.chat.id, 'Більше інформації про процедуру та пункти здачі крові на kmck.kiev.ua')
 
 def get_user_blood_type(self):
     # TODO: send the info about the user to MySQL
