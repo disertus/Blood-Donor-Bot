@@ -72,7 +72,7 @@ def bot_info(message):
 
 @bot.message_handler(commands=['start'])
 def welcome_message(message):
-    print(f'@{message.chat.username} logged in on {datetime.date.today()}')  # returns the Telegram @username of the user
+    print(f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}" logged in on {datetime.date.today()}')  # returns the Telegram @username of the user
     blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
     blood_type1 = telebot.types.KeyboardButton('I - перша')
     blood_type2 = telebot.types.KeyboardButton('II - друга')
@@ -104,9 +104,12 @@ def thank_you_for_answers(message):
     if (message.text == '(+)') or (message.text == '(–)'):
         emoji = u'\U0001F618'
         quest = 'Залишились питання? Тисни /help'
+        keyboard_remove = telebot.types.ReplyKeyboardRemove(selective=True)
         bot.send_message(message.chat.id,
-        f'All done!\nТепер я надсилатиму тобі сповіщення, якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}')
+        f'All done!\nТепер я надсилатиму тобі сповіщення, якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}',
+                         reply_markup=keyboard_remove)
         print(f'Blood Rh: {message.text}')
+        print('------------------------')
     else:
         bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
 
