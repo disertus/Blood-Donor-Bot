@@ -63,8 +63,8 @@ user = bot.get_me()
 
 @bot.message_handler(commands=['help'])
 def bot_info(message):
-    upd = '/update - актуальні запаси крові'
-    strt = '/start - пройти опитування знову'
+    upd = '/update - перевірити запаси крові'
+    strt = '/start - вказати / оновити групу крові'
     inf = '/info - довідкова інформація'
     bot.send_message(message.chat.id, f'{strt}\n{upd}\n{inf}')
 
@@ -89,6 +89,7 @@ def welcome_message(message):
 
 
 def ask_blood_rh(message):
+    # TODO: add if-else conditions, avoid non-answered questions with recursion
     blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
     blood_rh_plus = telebot.types.KeyboardButton('(+)')
     blood_rh_minus = telebot.types.KeyboardButton('(–)')
@@ -103,7 +104,7 @@ def ask_blood_rh(message):
 def thank_you_for_answers(message):
     if (message.text == '(+)') or (message.text == '(–)'):
         emoji = u'\U0001F618'
-        quest = 'Залишились питання? Тисни /help'
+        quest = 'Переглянути повний список функцій - тисни /help'
         keyboard_remove = telebot.types.ReplyKeyboardRemove(selective=True)
         bot.send_message(message.chat.id,
         f'All done!\nТепер я надсилатиму тобі сповіщення, якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}',
@@ -148,5 +149,8 @@ def notify_if_blood_is_low(self):
     incentive_text = 'Short reminder: Blood donation will give you 2 days off and a financial remuneration'
     pass
 
+def donation_scheaduler(message):
+    # TODO: ask the user for the date when they last donated blood, send notifications after 3 months if blood is needed
+    # acceptable intervals between blood donations: 2.5 mths for men, 3 mths for women
 
 bot.polling()
