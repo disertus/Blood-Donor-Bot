@@ -35,7 +35,9 @@ class MysqlDatabase:
 
     def __init__(self, db_credentials: tuple):
         self.mysql_credentials = db_credentials
-        self.engine = sqlalchemy.create_engine('mysql+pymysql://root:3a8n4m9qhhltp1r5@35.246.212.65:3306/covid')
+        self.engine = sqlalchemy.create_engine(self.mysql_credentials)
+        # for convenience pymysql is used instead of the official mysql.connector
+        # (the latter is maintained by MySQL team)
 
     def create_database(self):
         print (self.engine)
