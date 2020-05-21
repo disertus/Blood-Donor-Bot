@@ -1,9 +1,11 @@
 from bs4 import BeautifulSoup
 from functools import lru_cache
+
 import config
 import datetime
 import requests
 import telebot
+import sqlalchemy
 
 
 class Parser:
@@ -29,14 +31,14 @@ class Parser:
         return parsed_tag
 
 
-class MySQLdb:
+class MysqlDatabase:
 
     def __init__(self, db_credentials: tuple):
         self.mysql_credentials = db_credentials
-        self.connection = None
+        self.engine = sqlalchemy.create_engine('mysql+pymysql://root:3a8n4m9qhhltp1r5@35.246.212.65:3306/covid')
 
     def create_database(self):
-        pass
+        print (self.engine)
 
     def create_table(self):
         pass
@@ -55,7 +57,8 @@ class DataFrame:
 parser = Parser('http://kmck.kiev.ua/')
 blood_level = parser.clear_html_tags('h4')
 
-mysql_db = MySQLdb(config.db_credentials)
+mysqldb = MysqlDatabase(config.db_credentials)
+mysqldb.create_database()
 
 bot = telebot.TeleBot(config.token)
 user = bot.get_me()
@@ -152,5 +155,6 @@ def notify_if_blood_is_low(self):
 def donation_scheaduler(message):
     # TODO: ask the user for the date when they last donated blood, send notifications after 3 months if blood is needed
     # acceptable intervals between blood donations: 2.5 mths for men, 3 mths for women
+    pass
 
 bot.polling()
