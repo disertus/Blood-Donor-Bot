@@ -1,16 +1,19 @@
-from bs4 import BeautifulSoup
+import datetime
+import json
+import time
 from functools import lru_cache
+
+import requests
+import telebot
+from bs4 import BeautifulSoup
 from sqlalchemy import create_engine, Column, Integer, String, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 import config
-import datetime
-import requests
-import telebot
-
 
 Base = declarative_base()
+
 
 class Parser:
     """Parses the page and saves the data that has been collected into the mysqldb"""
@@ -33,7 +36,6 @@ class Parser:
         # Search inside <div class="vc_row wpb_row vc_inner vc_row-fluid">
         # Two separate columns have similar structure - data can be collected through indexing of elements
         parsed_tag = [item.string for item in self.parse_a_page().find_all(self.tag)]
-        print(parsed_tag)
         return parsed_tag
 
 
@@ -43,9 +45,13 @@ class DataFrame:
         pass
 
 
-class BloodLevels(Base):
+class BloodLevelsTable(Base):
+    """Creates the blood_by_group table and defines its structure"""
+
+    # __tablename__ is a compulsory attribute for the Base constructor to work
     __tablename__ = 'blood_by_group'
 
+    # Data types should be imported from the sqlalchemy library before using them
     id = Column(Integer, primary_key=True)
     date = Column(Date)
     one_plus = Column('I (+)', String(50), nullable=False)
@@ -62,40 +68,48 @@ class MysqlDatabase:
 
     def __init__(self, db_credentials: str):
         self.mysql_credentials = db_credentials
-        self.engine = create_engine(self.mysql_credentials)
+        self.engine = create_engine(self.mysql_credentials, echo=True)
         # for convenience pymysql is used instead of the official mysql.connector
         # (the latter is maintained by MySQL team)
 
     def create_table(self):
-        Base.metadata.create_all(self.engine)
-
-    def create_session(self):
-        Session = sessionmaker(bind=self.engine)
-        session = Session()
-        return session
+        return Base.metadata.create_all(self.engine)
 
     def save_to_mysql(self):
-        self.create_session().add_all([
-            BloodLevels(date=datetime.date.today(),
-                        one_plus=parser.clear_html_tags()[0],
-                        two_plus=parser.clear_html_tags()[1],
-                        tree_plus=parser.clear_html_tags()[2],
-                        four_plus=parser.clear_html_tags()[3],
-                        one_minus=parser.clear_html_tags()[4],
-                        two_minus=parser.clear_html_tags()[5],
-                        tree_minus=parser.clear_html_tags()[6],
-                        four_minus=parser.clear_html_tags()[7])])
-        self.create_session().commit()
-        pass
+        Session = sessionmaker(bind=self.engine)
+        session = Session()
+        session.add_all([
+            BloodLevelsTable(date=datetime.date.today(),
+                             one_plus=parser.clear_html_tags()[0],
+                             two_plus=parser.clear_html_tags()[1],
+                             tree_plus=parser.clear_html_tags()[2],
+                             four_plus=parser.clear_html_tags()[3],
+                             one_minus=parser.clear_html_tags()[4],
+                             two_minus=parser.clear_html_tags()[5],
+                             tree_minus=parser.clear_html_tags()[6],
+                             four_minus=parser.clear_html_tags()[7])])
+        session.commit()
 
+
+# def repeat_parsing():
+#     while True:
+#         mysqldb.save_to_mysql()
+#         time.sleep(5)
+
+
+# worker and webhook
 
 parser = Parser('http://kmck.kiev.ua/', 'h4')
+parser.clear_html_tags()
 
 mysqldb = MysqlDatabase(config.db_credentials)
 mysqldb.create_table()
-mysqldb.save_to_mysql()
 
 bot = telebot.TeleBot(config.token)
+# repeat_parsing()
+
+users_info = dict()
+
 
 
 @bot.message_handler(commands=['help'])
@@ -121,6 +135,12 @@ def welcome_message(message):
     msg = bot.send_message(message.chat.id, 'Привіт! Готовий рятувати життя? \nВкажи свою групу крові: ',
                            reply_markup=blood_types_keyboard)
     bot.register_next_step_handler(msg, ask_blood_rh)
+
+    users_info[f'{message.chat.id}']= dict(
+        blood_type= '',
+        blood_rh= '',
+        last_donated= '')
+    print(users_info)
     # TODO: create a log file recording all the actions
     # TODO: send the info about the user to MySQL
 
@@ -137,6 +157,8 @@ def ask_blood_rh(message):
     print(f'Blood type: {message.text}')
     bot.register_next_step_handler(msg, thank_you_for_answers)
 
+    users_info[f'{message.chat.id}']['blood_type'] = f'{message.text}'
+
 
 def thank_you_for_answers(message):
     if (message.text == '(+)') or (message.text == '(–)'):
@@ -148,17 +170,21 @@ def thank_you_for_answers(message):
                          reply_markup=keyboard_remove)
         print(f'Blood Rh: {message.text}')
         print('------------------------')
+        users_info[f'{message.chat.id}']['blood_rh'] = f'{message.text}'
+        with open('shelve.db', 'a') as f:
+            json.dump(users_info, f)
     else:
         bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
 
 
 @bot.message_handler(commands=['update'])
 def awaiting_functions(message):
+    blood_level = parser.clear_html_tags()
     bot.send_message(message.chat.id, f'Запаси станом на {datetime.date.today()}')
     bot.send_message(message.chat.id,
-                     f'I (+) : {blood_level[0]}\nII (+) : {blood_level[1]}\nIII (+) : {blood_level[2]}\nIV (+) : {blood_level[3]}')
+            f'I (+) : {blood_level[0]}\nII (+) : {blood_level[1]}\nIII (+) : {blood_level[2]}\nIV (+) : {blood_level[3]}')
     bot.send_message(message.chat.id,
-                     f'I (–) : {blood_level[4]}\nII (–) : {blood_level[5]}\nIII (–) : {blood_level[6]}\nIV (–) : {blood_level[7]}')
+            f'I (–) : {blood_level[4]}\nII (–) : {blood_level[5]}\nIII (–) : {blood_level[6]}\nIV (–) : {blood_level[7]}')
     # TODO: apply markup formatting to the text
 
 
@@ -184,15 +210,17 @@ def check_blood_availability(self):
 
 
 def notify_if_blood_is_low(self):
+    # TODO: add a weekly recurring task which will notify the user if his blood type is low
     notification_text = f'{bloodtype} is low - we need YOU to save lives'
     incentive_text = 'Short reminder: Blood donation will give you 2 days off and a financial remuneration'
+    bot.send_message(chat_id=users_info[message.chat.id], )
     pass
 
 
-def donation_scheaduler(message):
+def donation_scheduler(message):
     # TODO: ask the user for the date when they last donated blood, send notifications after 3 months if blood is needed
     # acceptable intervals between blood donations: 2.5 mths for men, 3 mths for women
     pass
 
 
-# bot.polling()
+bot.polling()
