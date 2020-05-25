@@ -22,19 +22,22 @@ class Parser:
         self.page_url = url
         self.tag = tag
 
-    @lru_cache(maxsize=128)
+    @lru_cache(maxsize=128)  # caches the data retrieved during parsing
     def parse_a_page(self):
+        """Parses the page, pretending to be a user due to page_headers parameter"""
+
+        # headers are necessary to emulate a 'live user' connection, otherwise produces an error
         page_headers = {
             'User-Agent':
                 "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/81.0.4044.138 Chrome/81.0.4044.138 Safari/537.36"
-        }  # headers are necessary to emulate a 'live user' connection
+        }
         open_url = requests.get(self.page_url, headers=page_headers).text
         soup = BeautifulSoup(open_url, 'lxml')
         return soup
 
     def clear_html_tags(self) -> list:
-        # Search inside <div class="vc_row wpb_row vc_inner vc_row-fluid">
-        # Two separate columns have similar structure - data can be collected through indexing of elements
+        """strips all the tags surrounding relevant text strings"""
+
         parsed_tag = [item.string for item in self.parse_a_page().find_all(self.tag)]
         return parsed_tag
 
@@ -65,6 +68,7 @@ class BloodLevelsTable(Base):
 
 
 class MysqlDatabase:
+    """Class containing all the functions related to db's CRUD"""
 
     def __init__(self, db_credentials: str):
         self.mysql_credentials = db_credentials
@@ -73,9 +77,11 @@ class MysqlDatabase:
         # (the latter is maintained by MySQL team)
 
     def create_table(self):
+        # 'create_all' method creates the structure outlined in BloodLevelsTable
         return Base.metadata.create_all(self.engine)
 
     def save_to_mysql(self):
+        """Saves the clean information into the MysqlDB"""
         Session = sessionmaker(bind=self.engine)
         session = Session()
         session.add_all([
@@ -91,13 +97,13 @@ class MysqlDatabase:
         session.commit()
 
 
-# def repeat_parsing():
-#     while True:
-#         mysqldb.save_to_mysql()
-#         time.sleep(5)
+def repeat_parsing():
+    """Creates an infinite loop, allowing to schedule the execution of functions"""
 
+    while True:
+        mysqldb.save_to_mysql()
+        time.sleep(5)
 
-# worker and webhook
 
 parser = Parser('http://kmck.kiev.ua/', 'h4')
 parser.clear_html_tags()
@@ -111,9 +117,10 @@ bot = telebot.TeleBot(config.token)
 users_info = dict()
 
 
-
 @bot.message_handler(commands=['help'])
 def bot_info(message):
+    """Shows all available commands when user types '/help' """
+
     upd = '/update - перевірити запаси крові'
     strt = '/start - вказати / оновити групу крові'
     inf = '/info - довідкова інформація'
@@ -122,9 +129,11 @@ def bot_info(message):
 
 @bot.message_handler(commands=['start'])
 def welcome_message(message):
-    print(
-        f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}" logged in on {datetime.date.today()}')  # returns the Telegram @username of the user
-    blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
+    """Displays available blood types and asks to choose one from the list"""
+
+    blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(
+        one_time_keyboard=True,
+        row_width=2)
     blood_type1 = telebot.types.KeyboardButton('I - перша')
     blood_type2 = telebot.types.KeyboardButton('II - друга')
     blood_type3 = telebot.types.KeyboardButton('III - третя')
@@ -132,21 +141,29 @@ def welcome_message(message):
     blood_types_keyboard.row(blood_type1, blood_type2)
     blood_types_keyboard.row(blood_type3, blood_type4)
 
-    msg = bot.send_message(message.chat.id, 'Привіт! Готовий рятувати життя? \nВкажи свою групу крові: ',
-                           reply_markup=blood_types_keyboard)
+    msg = bot.send_message(
+        message.chat.id,
+        'Привіт! Готовий рятувати життя? \nВкажи свою групу крові: ',
+        reply_markup=blood_types_keyboard)
     bot.register_next_step_handler(msg, ask_blood_rh)
 
-    users_info[f'{message.chat.id}']= dict(
-        blood_type= '',
-        blood_rh= '',
-        last_donated= '')
+    users_info[f'{message.chat.id}'] = dict(
+        blood_type='',
+        blood_rh='',
+        last_donated='')
+
+    # Displays the Telegram @username and f-l-names of the user, this info is not stored anywhere
+    print(
+        f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}" logged in on {datetime.date.today()}')
     print(users_info)
     # TODO: create a log file recording all the actions
     # TODO: send the info about the user to MySQL
 
 
 def ask_blood_rh(message):
+    """Asks for the blood RH of the user, registers the blood type into a dict"""
     # TODO: add if-else conditions, avoid non-answered questions with recursion
+
     blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
     blood_rh_plus = telebot.types.KeyboardButton('(+)')
     blood_rh_minus = telebot.types.KeyboardButton('(–)')
@@ -154,13 +171,15 @@ def ask_blood_rh(message):
     blood_types_keyboard.row(blood_rh_minus)
     msg = bot.send_message(message.chat.id, 'А тепер вкажи свій резус-фактор:',
                            reply_markup=blood_types_keyboard)
-    print(f'Blood type: {message.text}')
     bot.register_next_step_handler(msg, thank_you_for_answers)
 
     users_info[f'{message.chat.id}']['blood_type'] = f'{message.text}'
+    print(f'Blood type: {message.text}')
 
 
 def thank_you_for_answers(message):
+    """Thanks for the information, shows a list of available commands, records answers into JSON"""
+
     if (message.text == '(+)') or (message.text == '(–)'):
         emoji = u'\U0001F618'
         quest = 'Переглянути повний список функцій - тисни /help'
@@ -178,25 +197,22 @@ def thank_you_for_answers(message):
 
 
 @bot.message_handler(commands=['update'])
-def awaiting_functions(message):
+def check_blood_availability(message):
+    """Displays the freshly parsed info about blood availability"""
+
     blood_level = parser.clear_html_tags()
     bot.send_message(message.chat.id, f'Запаси станом на {datetime.date.today()}')
     bot.send_message(message.chat.id,
-            f'I (+) : {blood_level[0]}\nII (+) : {blood_level[1]}\nIII (+) : {blood_level[2]}\nIV (+) : {blood_level[3]}')
+                     f'I (+) : {blood_level[0]}\nII (+) : {blood_level[1]}\nIII (+) : {blood_level[2]}\nIV (+) : {blood_level[3]}')
     bot.send_message(message.chat.id,
-            f'I (–) : {blood_level[4]}\nII (–) : {blood_level[5]}\nIII (–) : {blood_level[6]}\nIV (–) : {blood_level[7]}')
+                     f'I (–) : {blood_level[4]}\nII (–) : {blood_level[5]}\nIII (–) : {blood_level[6]}\nIV (–) : {blood_level[7]}')
     # TODO: apply markup formatting to the text
 
 
 @bot.message_handler(commands=['info'])
 def donor_info(message):
+    """Sends a link to the Municipal Blood Centre for more information"""
     bot.send_message(message.chat.id, 'Більше інформації про процедуру та пункти здачі крові на kmck.kiev.ua')
-
-
-def get_user_blood_type(self):
-    # TODO: send the info about the user to MySQL
-    pass
-
 
 def get_user_contacts(self):
     # TODO: Optional, users may be unwilling to give up personal information
@@ -204,8 +220,8 @@ def get_user_contacts(self):
     pass
 
 
-def check_blood_availability(self):
-    # TODO: see if today's level is ok - check latest parsed info
+def get_user_blood_type(self):
+    # TODO: send the info about the user to MySQL / JSON database
     pass
 
 
