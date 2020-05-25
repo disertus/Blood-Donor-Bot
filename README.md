@@ -7,5 +7,6 @@ Bot's notification system should raise people's awareness about the existing sho
 - collect data on users' blood type
 - inform them once there is a lack of donors' blood at the blood bank (if their blood type is required)
 - collect chronological data on the availability of specific blood types
+- schedule the donations using the info about the date of the last donation
 
 This bot could become scalable and be used by blood banks in various cities. 
