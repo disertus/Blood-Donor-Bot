@@ -50,7 +50,6 @@ class DataFrame:
 
 class BloodLevelsTable(Base):
     """Creates the blood_by_group table and defines its structure"""
-
     # __tablename__ is a compulsory attribute for the Base constructor to work
     __tablename__ = 'blood_by_group'
 
@@ -147,6 +146,7 @@ def welcome_message(message):
         reply_markup=blood_types_keyboard)
     bot.register_next_step_handler(msg, ask_blood_rh)
 
+
     users_info[f'{message.chat.id}'] = dict(
         blood_type='',
         blood_rh='',
@@ -190,8 +190,8 @@ def thank_you_for_answers(message):
         print(f'Blood Rh: {message.text}')
         print('------------------------')
         users_info[f'{message.chat.id}']['blood_rh'] = f'{message.text}'
-        with open('shelve.db', 'a') as f:
-            json.dump(users_info, f)
+        with open('users-info.json', 'w') as json_file:
+            json.dump(users_info, json_file)
     else:
         bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
 
