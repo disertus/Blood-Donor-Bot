@@ -97,7 +97,7 @@ class MysqlDatabase:
 
 
 def repeat_parsing():
-    """Creates an infinite loop, allowing to schedule the execution of functions"""
+    """Creates an infinite loop, allowing to schedule the execution of functions """
 
     while True:
         mysqldb.save_bloodlvl_to_mysql()
