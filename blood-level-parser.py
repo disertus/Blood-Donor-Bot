@@ -227,8 +227,8 @@ def get_user_blood_type(self):
 
 def notify_if_blood_is_low(self):
     # TODO: add a weekly recurring task which will notify the user if his blood type is low
-    notification_text = f'{bloodtype} is low - we need YOU to save lives'
-    incentive_text = 'Short reminder: Blood donation will give you 2 days off and a financial remuneration'
+    notification_text = f'Запас {bloodtype} {bloodlevel} - ТИ нам потрібен'
+    incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя, довідка на 2 вихідних, і чай з печивком (емодзі)'
     bot.send_message(chat_id=users_info[message.chat.id], )
     pass
 
