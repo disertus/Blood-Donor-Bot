@@ -183,12 +183,10 @@ def welcome_message(message):
             '*'*10)
 
     # TODO: create a log file recording all the actions
-    # TODO: send the info about the user to MySQL
 
 
 def ask_blood_rh(message):
     """Asks for the blood RH of the user, saves the blood type into a dict"""
-
     if message.text == 'I - перша' or message.text == 'II - друга' or message.text == 'III - третя' or message.text == 'IV - четверта':
         cid = message.chat.id
         blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
