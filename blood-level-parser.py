@@ -111,8 +111,11 @@ mysqldb = MysqlDatabase(config.db_credentials)
 mysqldb.create_table()
 
 bot = telebot.TeleBot(config.token)
-with open('user-table.json', 'r') as f:
-    user = json.load(f)
+try:
+    with open('user-table.json', 'r') as f:
+        user = json.load(f)
+except FileNotFoundError:
+    user = dict()
 
 
 # repeat_parsing()
@@ -120,10 +123,10 @@ with open('user-table.json', 'r') as f:
 @bot.message_handler(commands=['help'])
 def bot_info(message):
     """Shows all available commands when user types '/help' """
-
+    rstrt = '/restart - повторно вказати свою групу крові'
     upd = '/update - перевірити запаси крові'
     inf = '/info - довідкова інформація'
-    bot.send_message(message.chat.id, f'{strt}\n{upd}\n{inf}')
+    bot.send_message(message.chat.id, f'{rstrt}\n{upd}\n{inf}')
 
 
 @bot.message_handler(commands=['info'])
@@ -160,8 +163,9 @@ def welcome_message(message):
     blood_types_keyboard.row(blood_type3, blood_type4)
 
     if str(cid) in user:
-        bot.send_message(cid, 'Схоже, ти вже в базі користувачів.'
-                              'Дякую що допомагаєш рятувати життя!')
+        bot.send_message(cid, 'Схоже, ти вже в базі користувачів.\n'
+                              'Дякую що допомагаєш рятувати життя!\n\n'
+                              'Якщо хочеш оновити дані про себе - тисни /reset')
 
     else:
         msg = bot.send_message(
@@ -169,12 +173,14 @@ def welcome_message(message):
         bot.register_next_step_handler(msg, ask_blood_rh)
         user[str(cid)] = dict(blood_type=None,
                               blood_rh=None,
-                              last_donated=None)
+                              last_donated=None,
+                              bot_stage=0)
 
         # Displays the Telegram @username and f-l-names of the user, this info is not stored anywhere
         print(
-            f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}" logged in on {datetime.date.today()}')
-        print(user)
+            '*'*10,
+            f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}" logged in on {datetime.date.today()}',
+            '*'*10)
 
     # TODO: create a log file recording all the actions
     # TODO: send the info about the user to MySQL
@@ -182,41 +188,72 @@ def welcome_message(message):
 
 def ask_blood_rh(message):
     """Asks for the blood RH of the user, saves the blood type into a dict"""
-    # TODO: add if-else conditions, to avoid non-answered questions with recursion
 
-    cid = message.chat.id
-    blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
-    blood_rh_plus = telebot.types.KeyboardButton('(+)')
-    blood_rh_minus = telebot.types.KeyboardButton('(–)')
-    blood_types_keyboard.row(blood_rh_plus)
-    blood_types_keyboard.row(blood_rh_minus)
-    msg = bot.send_message(cid, 'А тепер вкажи свій резус-фактор:',
-                           reply_markup=blood_types_keyboard)
-    bot.register_next_step_handler(msg, thank_you_for_answers)
+    if message.text == 'I - перша' or message.text == 'II - друга' or message.text == 'III - третя' or message.text == 'IV - четверта':
+        cid = message.chat.id
+        blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
+        blood_rh_plus = telebot.types.KeyboardButton('(+)')
+        blood_rh_minus = telebot.types.KeyboardButton('(–)')
+        blood_types_keyboard.row(blood_rh_plus)
+        blood_types_keyboard.row(blood_rh_minus)
+        msg = bot.send_message(cid, 'А тепер вкажи свій резус-фактор:',
+                               reply_markup=blood_types_keyboard)
+        bot.register_next_step_handler(msg, last_donated)
 
-    user[str(cid)]['blood_type'] = str(message.text)
-    print(f'Blood type: {message.text}')
+        user[str(cid)]['blood_type'] = str(message.text)
+        user[str(cid)]['bot_stage'] = 1
+        print(f'Blood type: {message.text}')
+    else:
+        bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
+        return welcome_message
+
+
+def last_donated(message):
+    """Asks when approximately the user last donated blood. Info is used for reminders"""
+    if message.text == '(+)' or message.text == '(–)':
+        cid = message.chat.id
+        two_mtsh = "2+ місяців тому"
+        one_mth = "Місяць тому"
+        two_weeks = "Два тижні тому"
+        one_week = "Тиждень тому"
+
+        donation_dates_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
+        more_than_two_months = telebot.types.KeyboardButton(two_mtsh)
+        one_month_ago = telebot.types.KeyboardButton(one_mth)
+        two_weeks_ago = telebot.types.KeyboardButton(two_weeks)
+        one_week_ago = telebot.types.KeyboardButton(one_week)
+        donation_dates_keyboard.row(more_than_two_months, one_month_ago)
+        donation_dates_keyboard.row(two_weeks_ago, one_week_ago)
+        msg = bot.send_message(cid, 'Коли приблизно ти востаннє здавав кров?\n'
+                                    'Від цього залежить коли ти отримаєш сповіщення',
+                               reply_markup=donation_dates_keyboard)
+        bot.register_next_step_handler(msg, thank_you_for_answers)
+
+        user[str(cid)]['blood_rh'] = str(message.text)
+        user[str(cid)]['bot_stage'] = 2
+        print(f'Blood Rh: {message.text}')
+
+    else:
+        bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
+        del user[str(message.chat.id)]
 
 
 def thank_you_for_answers(message):
     """Thanks for the information, shows a list of available commands, saves the answers locally to users-info.json"""
-    if (message.text == '(+)') or (message.text == '(–)'):
-        cid = message.chat.id
-        emoji = u'\U0001F618'
-        quest = 'Переглянути повний список функцій - тисни /help'
-        keyboard_remove = telebot.types.ReplyKeyboardRemove(selective=True)
-        bot.send_message(cid, 'All done!\nТепер я надсилатиму тобі сповіщення,'
-                              f'якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}',
-                              reply_markup=keyboard_remove)
-        print(f'Blood Rh: {message.text}')
-        print('------------------------')
-        user[str(cid)]['blood_rh'] = str(message.text)
-        with open('user-table.json', 'w') as json_file:
-            json.dump(user, json_file)
+    cid = message.chat.id
+    emoji = u'\U0001F618'
+    quest = 'Переглянути повний список функцій - тисни /help'
+    keyboard_remove = telebot.types.ReplyKeyboardRemove(selective=True)
+    bot.send_message(cid, 'All done!\nТепер я надсилатиму тобі сповіщення,'
+                          f'якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}',
+                          reply_markup=keyboard_remove)
 
-    else:
-        bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
-        return welcome_message
+    print(f'Last donated: {message.text}\n', '-' * 15)
+
+    user[str(cid)]['last_donated'] = str(message.text)
+    user[str(cid)]['bot_stage'] = 3
+    with open('user-table.json', 'w') as json_file:
+        json.dump(user, json_file)
 
 
 def get_user_contacts(self):
