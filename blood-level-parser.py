@@ -110,7 +110,7 @@ parser.clear_html_tags()
 mysqldb = MysqlDatabase(config.db_credentials)
 mysqldb.create_table()
 
-bot = telebot.TeleBot(config.token)
+bot = telebot.TeleBot(config.token, True, 2)
 try:
     with open('user-table.json', 'r') as f:
         user = json.load(f)
@@ -246,7 +246,7 @@ def thank_you_for_answers(message):
                           f'якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}',
                           reply_markup=keyboard_remove)
 
-    print(f'Last donated: {message.text}\n', '-' * 15)
+    print(f'Last donated: {message.text}\n', '*' * 50)
 
     user[str(cid)]['last_donated'] = str(message.text)
     user[str(cid)]['bot_stage'] = 3
@@ -254,29 +254,59 @@ def thank_you_for_answers(message):
         json.dump(user, json_file)
 
 
-def get_user_contacts(self):
-    # TODO: Optional, users may be unwilling to give up personal information
-    # user_name, phone_number
-    pass
-
-
-def get_user_blood_type(self):
-    # TODO: send the info about the user to MySQL / JSON database
-    pass
-
-
-def notify_if_blood_is_low(self):
-    # TODO: add a weekly recurring task which will notify the user if his blood type is low
+def check_if_scheduled_date_is_today(message):
+    # TODO: add a weekly recurring task which will notify the user if the scheduled date has come and blood is low
+    # TODO: if blood is not low on scheduled date - reschedules the notification to the next week
+    # notifier should begin running a background task of comparing scheduled date with today's date, and sends a notif
     notification_text = f'Запас {bloodtype} {bloodlevel} - ТИ нам потрібен'
     incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя, довідка на 2 вихідних, і чай з печивком (емодзі)'
     bot.send_message(chat_id=users_info[message.chat.id], )
     pass
 
 
-def donation_scheduler(message):
-    # TODO: ask the user for the date when they last donated blood, send notifications after 3 months if blood is needed
-    # acceptable intervals between blood donations: 2.5 mths for men, 3 mths for women
+def calculate_last_donation_date(message):
+    if message == '2+ місяців тому':
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=60)).strftime('%d-%m-%Y')
+        print(last_donated_date)
+    elif message == 'Місяць тому':
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=30)).strftime('%d-%m-%Y')
+        print(last_donated_date)
+    elif message == "Два тижні тому":
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=14)).strftime('%d-%m-%Y')
+        print(last_donated_date)
+    elif message == "Тиждень тому":
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=7)).strftime('%d-%m-%Y')
+        print(last_donated_date)
+    else:
+        print('Сталася помилка і все покотилося ')
+    return last_donated_date
+
+
+def notify_if_blood_is_low(message):
     pass
+
+# @bot.set_update_listener()
+def donation_scheduler(message):
+    # TODO: schedules the notification date based on last_donated date
+    # function must run at a separate thread, lambda function should limit triggering messages
+    if message == '2+ місяців тому':
+        pass
+    elif message == 'Місяць тому':
+        pass
+    elif message == "Два тижні тому":
+        pass
+    elif message == "Тиждень тому":
+        pass
+    else:
+        pass
+
+
+
+def get_user_contacts(self):
+    # TODO: Optional, users may be unwilling to give up personal information
+    # user_name, phone_number
+    pass
+
 
 
 bot.polling()
