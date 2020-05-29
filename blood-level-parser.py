@@ -210,16 +210,12 @@ def last_donated(message):
     """Asks when approximately the user last donated blood. Info is used for reminders"""
     if message.text == '(+)' or message.text == '(–)':
         cid = message.chat.id
-        two_mtsh = "2+ місяців тому"
-        one_mth = "Місяць тому"
-        two_weeks = "Два тижні тому"
-        one_week = "Тиждень тому"
 
         donation_dates_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
-        more_than_two_months = telebot.types.KeyboardButton(two_mtsh)
-        one_month_ago = telebot.types.KeyboardButton(one_mth)
-        two_weeks_ago = telebot.types.KeyboardButton(two_weeks)
-        one_week_ago = telebot.types.KeyboardButton(one_week)
+        more_than_two_months = telebot.types.KeyboardButton("2+ місяців тому")
+        one_month_ago = telebot.types.KeyboardButton("Місяць тому")
+        two_weeks_ago = telebot.types.KeyboardButton("Два тижні тому")
+        one_week_ago = telebot.types.KeyboardButton("Тиждень тому")
         donation_dates_keyboard.row(more_than_two_months, one_month_ago)
         donation_dates_keyboard.row(two_weeks_ago, one_week_ago)
         msg = bot.send_message(cid, 'Коли приблизно ти востаннє здавав кров?\n'
@@ -248,58 +244,51 @@ def thank_you_for_answers(message):
 
     print(f'Last donated: {message.text}\n', '*' * 50)
 
-    user[str(cid)]['last_donated'] = f'{calculate_last_donation_date(message.text)}'
+    user[str(cid)]['last_donated'] = calculate_last_donation_date(message.text)
+    user[str(cid)]['notify_date'] = donation_scheduler(user[str(cid)]['last_donated'])
     user[str(cid)]['bot_stage'] = 3
     with open('user-table.json', 'w') as json_file:
         json.dump(user, json_file)
 
 
-def check_if_scheduled_date_is_today(message):
-    # TODO: add a weekly recurring task which will notify the user if the scheduled date has come and blood is low
-    # TODO: if blood is not low on scheduled date - reschedules the notification to the next week
-    # notifier should begin running a background task of comparing scheduled date with today's date, and sends a notif
-    notification_text = f'Запас {bloodtype} {bloodlevel} - ТИ нам потрібен'
-    incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя, довідка на 2 вихідних, і чай з печивком (емодзі)'
-    bot.send_message(chat_id=users_info[message.chat.id], )
-    pass
-
-
 def calculate_last_donation_date(message):
     if message == '2+ місяців тому':
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=60))
-        return last_donated_date
+        return f'{last_donated_date}'
     elif message == 'Місяць тому':
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=30))
-        return last_donated_date
+        return f'{last_donated_date}'
     elif message == "Два тижні тому":
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=14))
-        return last_donated_date
+        return f'{last_donated_date}'
     elif message == "Тиждень тому":
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
-        return last_donated_date
+        return f'{last_donated_date}'
     else:
         print('Сталася помилка і все покотилося ')
         raise ValueError
 
 
-def notify_if_blood_is_low(message):
+# @bot.set_update_listener()
+def donation_scheduler(last_donation_date: str) -> str:
+    # TODO: defines the notification date based on last_donated date
+    date_object = datetime.datetime.strptime(last_donation_date, '%Y-%m-%d')
+    return f'{date_object.date() + datetime.timedelta(days=60)}'
+
+
+def check_if_scheduled_date_is_today(*messages):
+    # TODO: add a weekly recurring task which will notify the user if the scheduled date has come and blood is low
+    # TODO: if blood is not low on scheduled date - reschedules the notification to the next week
+    # should run as a background task of comparing scheduled date with today's date, and sends a notif
+    print(f'New message recieved at {datetime.time.hour}')
+    # notification_text = f'Запас {bloodtype} {bloodlevel} - ТИ нам потрібен'
+    # incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя, довідка на 2 вихідних, і чай з печивком (емодзі)'
+    # bot.send_message(chat_id=users_info[message.chat.id], )
     pass
 
-# @bot.set_update_listener()
-def donation_scheduler(message):
-    # TODO: schedules the notification date based on last_donated date
-    # function must run at a separate thread, lambda function should limit triggering messages
-    if message == '2+ місяців тому':
-        pass
-    elif message == 'Місяць тому':
-        pass
-    elif message == "Два тижні тому":
-        pass
-    elif message == "Тиждень тому":
-        pass
-    else:
-        pass
 
+def notify_if_blood_is_low(message):
+    pass
 
 
 def get_user_contacts(self):
@@ -308,5 +297,5 @@ def get_user_contacts(self):
     pass
 
 
-
-bot.polling()
+bot.set_update_listener(check_if_scheduled_date_is_today)
+bot.polling(interval=2)
