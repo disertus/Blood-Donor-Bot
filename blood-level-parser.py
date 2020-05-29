@@ -248,7 +248,7 @@ def thank_you_for_answers(message):
 
     print(f'Last donated: {message.text}\n', '*' * 50)
 
-    user[str(cid)]['last_donated'] = str(message.text)
+    user[str(cid)]['last_donated'] = f'{calculate_last_donation_date(message.text)}'
     user[str(cid)]['bot_stage'] = 3
     with open('user-table.json', 'w') as json_file:
         json.dump(user, json_file)
@@ -266,20 +266,20 @@ def check_if_scheduled_date_is_today(message):
 
 def calculate_last_donation_date(message):
     if message == '2+ місяців тому':
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=60)).strftime('%d-%m-%Y')
-        print(last_donated_date)
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=60))
+        return last_donated_date
     elif message == 'Місяць тому':
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=30)).strftime('%d-%m-%Y')
-        print(last_donated_date)
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=30))
+        return last_donated_date
     elif message == "Два тижні тому":
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=14)).strftime('%d-%m-%Y')
-        print(last_donated_date)
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=14))
+        return last_donated_date
     elif message == "Тиждень тому":
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=7)).strftime('%d-%m-%Y')
-        print(last_donated_date)
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
+        return last_donated_date
     else:
         print('Сталася помилка і все покотилося ')
-    return last_donated_date
+        raise ValueError
 
 
 def notify_if_blood_is_low(message):
