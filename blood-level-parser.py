@@ -99,16 +99,13 @@ class MysqlDatabase:
 def repeat_parsing():
     """Creates an infinite loop, allowing to schedule the execution of functions """
 
-    while True:
-        mysqldb.save_bloodlvl_to_mysql()
-        time.sleep(5)
-
 
 parser = Parser('http://kmck.kiev.ua/', 'h4')
 parser.clear_html_tags()
 
 mysqldb = MysqlDatabase(config.db_credentials)
 mysqldb.create_table()
+mysqldb.save_bloodlvl_to_mysql()
 
 bot = telebot.TeleBot(config.token, True, 2)
 try:
@@ -153,15 +150,11 @@ def welcome_message(message):
     """Displays available blood types and asks to choose one from the list"""
 
     cid = message.chat.id
-    blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True,
-                                                             row_width=2)
-    blood_type1 = telebot.types.KeyboardButton('I - перша')
-    blood_type2 = telebot.types.KeyboardButton('II - друга')
-    blood_type3 = telebot.types.KeyboardButton('III - третя')
-    blood_type4 = telebot.types.KeyboardButton('IV - четверта')
-    blood_types_keyboard.row(blood_type1, blood_type2)
-    blood_types_keyboard.row(blood_type3, blood_type4)
+    blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    blood_types_keyboard.row('I - перша', 'II - друга')
+    blood_types_keyboard.row('III - третя', 'IV - четверта')
 
+    # TODO: check the bot_stage of the user
     if str(cid) in user:
         bot.send_message(cid, 'Схоже, ти вже в базі користувачів.\n'
                               'Дякую що допомагаєш рятувати життя!\n\n'
@@ -178,24 +171,21 @@ def welcome_message(message):
 
         # Displays the Telegram @username and f-l-names of the user, this info is not stored anywhere
         print(
-            '*'*10,
+            '*' * 10,
             f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}" logged in on {datetime.date.today()}',
-            '*'*10)
+            '*' * 10)
 
-    # TODO: create a log file recording all the actions
+    # TODO: create a log file recording all the actions (use standard library)
 
 
 def ask_blood_rh(message):
     """Asks for the blood RH of the user, saves the blood type into a dict"""
     if message.text == 'I - перша' or message.text == 'II - друга' or message.text == 'III - третя' or message.text == 'IV - четверта':
         cid = message.chat.id
-        blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
-        blood_rh_plus = telebot.types.KeyboardButton('(+)')
-        blood_rh_minus = telebot.types.KeyboardButton('(–)')
-        blood_types_keyboard.row(blood_rh_plus)
-        blood_types_keyboard.row(blood_rh_minus)
-        msg = bot.send_message(cid, 'А тепер вкажи свій резус-фактор:',
-                               reply_markup=blood_types_keyboard)
+        blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        blood_types_keyboard.row('(+)')
+        blood_types_keyboard.row('(–)')
+        msg = bot.send_message(cid, 'А тепер вкажи свій резус-фактор:', reply_markup=blood_types_keyboard)
         bot.register_next_step_handler(msg, last_donated)
 
         user[str(cid)]['blood_type'] = str(message.text)
@@ -210,16 +200,12 @@ def last_donated(message):
     """Asks when approximately the user last donated blood. Info is used for reminders"""
     if message.text == '(+)' or message.text == '(–)':
         cid = message.chat.id
-
-        donation_dates_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2)
-        more_than_two_months = telebot.types.KeyboardButton("2+ місяців тому")
-        one_month_ago = telebot.types.KeyboardButton("Місяць тому")
-        two_weeks_ago = telebot.types.KeyboardButton("Два тижні тому")
-        one_week_ago = telebot.types.KeyboardButton("Тиждень тому")
-        donation_dates_keyboard.row(more_than_two_months, one_month_ago)
-        donation_dates_keyboard.row(two_weeks_ago, one_week_ago)
-        msg = bot.send_message(cid, 'Коли приблизно ти востаннє здавав кров?\n'
-                                    'Від цього залежить коли ти отримаєш сповіщення',
+        donation_dates_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        donation_dates_keyboard.row("2+ місяців тому", "Місяць тому")
+        donation_dates_keyboard.row("Два тижні тому", "Тиждень тому")
+        msg = bot.send_message(cid,
+                               'Коли приблизно ти востаннє здавав кров?\n'
+                               'Від цього залежатиме коли ти отримаєш сповіщення',
                                reply_markup=donation_dates_keyboard)
         bot.register_next_step_handler(msg, thank_you_for_answers)
 
@@ -229,7 +215,8 @@ def last_donated(message):
 
     else:
         bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
-        del user[str(message.chat.id)]
+        del user[str(message.chat.id)]['blood_rh']
+        return ask_blood_rh
 
 
 def thank_you_for_answers(message):
@@ -238,14 +225,14 @@ def thank_you_for_answers(message):
     emoji = u'\U0001F618'
     quest = 'Переглянути повний список функцій - тисни /help'
     keyboard_remove = telebot.types.ReplyKeyboardRemove(selective=True)
-    bot.send_message(cid, 'All done!\nТепер я надсилатиму тобі сповіщення,'
+    bot.send_message(cid, 'All done!\nТепер я надсилатиму тобі сповіщення, '
                           f'якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}',
-                          reply_markup=keyboard_remove)
+                     reply_markup=keyboard_remove)
 
     print(f'Last donated: {message.text}\n', '*' * 50)
 
     user[str(cid)]['last_donated'] = calculate_last_donation_date(message.text)
-    user[str(cid)]['notify_date'] = donation_scheduler(user[str(cid)]['last_donated'])
+    user[str(cid)]['notify_date'] = schedule_donation(user[str(cid)]['last_donated'])
     user[str(cid)]['bot_stage'] = 3
     with open('user-table.json', 'w') as json_file:
         json.dump(user, json_file)
@@ -265,29 +252,61 @@ def calculate_last_donation_date(message):
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
         return f'{last_donated_date}'
     else:
-        print('Сталася помилка і все покотилося ')
+        print('Сталася помилка і бот помер :*(')
         raise ValueError
 
 
 # @bot.set_update_listener()
-def donation_scheduler(last_donation_date: str) -> str:
-    # TODO: defines the notification date based on last_donated date
+def schedule_donation(last_donation_date: str) -> str:
+    """Defines the notification date based on last_donated date"""
     date_object = datetime.datetime.strptime(last_donation_date, '%Y-%m-%d')
     return f'{date_object.date() + datetime.timedelta(days=60)}'
 
 
 def check_if_scheduled_date_is_today(*messages):
     # TODO: add a weekly recurring task which will notify the user if the scheduled date has come and blood is low
-    # TODO: if blood is not low on scheduled date - reschedules the notification to the next week
     # should run as a background task of comparing scheduled date with today's date, and sends a notif
-    print(f'New message recieved at {datetime.time.hour}')
+    for id in user_info.keys():
+        if user_info[id]['notify_date'] == f'{datetime.date.today()}'
+            notification = check_if_blood_is_low()
+            try:
+                notification == True
+                bot.send_message(id, 'Привіт! З моменту останньої здачі крові пройшло більше двох місяців. '
+                                 f'Київський центр крові потребує {blood_type}{blood_rh} - рівень {blood_level}')
+                pass
+            except notification = False:
+                reschedule_donation()
+            if blood_not_low
+
+
+def check_if_blood_is_low():
+    parsed_blood_lvls -> compatible_with_user_info : dict?
+    for id in user_info.keys():
+        user_info[id]['blood_type'] + user_info[id]['blood_rh']
+    if blood_level != "Достатньо":
+        return True
+    elif blood_level == 'Достатньо':
+        return False
+    else:
+        print('An error occurred, sorry pal :(')
+
+
+    print(f'New message recieved at {datetime.datetime.now()}')
     # notification_text = f'Запас {bloodtype} {bloodlevel} - ТИ нам потрібен'
     # incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя, довідка на 2 вихідних, і чай з печивком (емодзі)'
     # bot.send_message(chat_id=users_info[message.chat.id], )
     pass
 
 
+def reschedule_donation(*messages):
+    # TODO: if blood is not low on scheduled notification date - reschedules the notification to the next week
+
+    pass
+
+
 def notify_if_blood_is_low(message):
+    # TODO: include send_location of the blood bank
+
     pass
 
 
@@ -298,4 +317,4 @@ def get_user_contacts(self):
 
 
 bot.set_update_listener(check_if_scheduled_date_is_today)
-bot.polling(interval=2)
+bot.polling(none_stop=True, interval=1)
