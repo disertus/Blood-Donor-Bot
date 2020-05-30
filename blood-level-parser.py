@@ -191,7 +191,7 @@ def decide_when_to_notify():
 
     for uid in user.keys():
         notify_today = check_if_scheduled_date_is_today(uid)
-        if notify_today is True:
+        # if notify_today is True:
     #         blood_low = check_if_blood_is_low(uid)
     #         if blood_low is True:
     #             notify_the_user(uid, datetime.tomorrow_9am)
@@ -338,10 +338,9 @@ def infinite_update_loop(delay):
         time.sleep(30)
 
 
-task1 = threading.Thread(target=infinite_update_loop, args=(1,))
+task1 = threading.Thread(target=infinite_update_loop, args=(60,))
 task1.start()
 
-task2 = threading.Thread(target=bot.polling())
-task2.start()
+bot.polling()
 
 # bot.set_update_listener(check_if_scheduled_date_is_today)
