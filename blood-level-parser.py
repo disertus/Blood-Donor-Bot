@@ -148,10 +148,26 @@ def check_if_scheduled_date_is_today(user_id):
     """Checks if the scheduled notification date is today"""
 
     if user[user_id]['notify_date'] == f'{datetime.date.today()}':
-        bot.send_message(user_id, 'Клас, настав день для отримання першого сповіщення')
         return True
     else:
         return False
+
+
+def check_if_blood_is_low(user_id):
+    """Checks if parsed blood level corresponding to users blood is low"""
+
+    parsed_info = parser.clear_html_tags()  # -> compatible_with_user_info: dict?
+    blood_types = ['I(+)', 'II(+)', 'III(+)', 'IV(+)', 'I(-)', 'II(-)', 'III(-)', 'IV(-)']
+    blood_levels = {key: value for key, value in zip(blood_types, parsed_info)}
+    user_blood = f"{user[user_id]['blood_type']}{user[user_id]['blood_rh']}"
+    print(blood_levels[user_blood])
+    if blood_levels[user_blood] != "Достатньо":
+        return True
+    elif blood_levels[user_blood] == 'Достатньо':
+        bot.send_message(user_id, 'Cхоже, наразі крові твоєї групи достатньо')
+        return False
+    else:
+        bot.send_message(user_id, 'An error occurred, sorry pal :(')
 
 
 def reschedule_notification(user_id):
@@ -161,25 +177,12 @@ def reschedule_notification(user_id):
         user_db[user_id]['notify_date'] = f'{datetime.date.today() + datetime.timedelta(days=7)}'
 
 
-def check_if_blood_is_low(user_id):
-    """Checks if parsed blood level corresponding to users blood is low"""
-
-    # parsed_blood_lvls -> compatible_with_user_info: dict?
-    user[user_id]['blood_type'] + user_info[id]['blood_rh']
-    if blood_level != "Достатньо":
-        return True
-    elif blood_level == 'Достатньо':
-        return False
-    else:
-        print('An error occurred, sorry pal :(')
-    pass
-
-
 def notify_the_user(user_id, date_time):
     """Sends a notification including the blood centre location"""
     # TODO: include send_location of the blood bank
 
-    incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя, довідка на 2 вихідних, і чай з печивком (емодзі)'
+    incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя' \
+                     ', довідка на 2 вихідних, і чай з печивком (емодзі)'
     bot.send_message(user_id, 'Привіт! З моменту останньої здачі крові пройшло більше двох місяців. '
                               f'Київський центр крові потребує {blood_type}{blood_rh} - рівень {blood_level}\n\n'
                               f'{incentive_text}')
@@ -191,8 +194,8 @@ def decide_when_to_notify():
 
     for uid in user.keys():
         notify_today = check_if_scheduled_date_is_today(uid)
-        # if notify_today is True:
-    #         blood_low = check_if_blood_is_low(uid)
+        if notify_today is True:
+            blood_low = check_if_blood_is_low(uid)
     #         if blood_low is True:
     #             notify_the_user(uid, datetime.tomorrow_9am)
     #         elif blood_low is False:
@@ -231,10 +234,14 @@ def check_blood_availability(message):
 
     blood_level = parser.clear_html_tags()
     bot.send_message(message.chat.id, f'Запаси станом на {datetime.date.today()}')
-    bot.send_message(message.chat.id,
-                     f'I (+) : {blood_level[0]}\nII (+) : {blood_level[1]}\nIII (+) : {blood_level[2]}\nIV (+) : {blood_level[3]}')
-    bot.send_message(message.chat.id,
-                     f'I (–) : {blood_level[4]}\nII (–) : {blood_level[5]}\nIII (–) : {blood_level[6]}\nIV (–) : {blood_level[7]}')
+    bot.send_message(
+        message.chat.id,
+        f'I (+) : {blood_level[0]}\nII (+) : {blood_level[1]}\nIII (+) : {blood_level[2]}\nIV (+) : {blood_level[3]}'
+    )
+    bot.send_message(
+        message.chat.id,
+        f'I (–) : {blood_level[4]}\nII (–) : {blood_level[5]}\nIII (–) : {blood_level[6]}\nIV (–) : {blood_level[7]}'
+    )
     # TODO: apply markup formatting to the text
 
 
@@ -286,7 +293,6 @@ def ask_blood_rh(message):
         print(f'Blood type: {message.text}')
     else:
         bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
-        return welcome_message
 
 
 def last_donated(message):
@@ -309,7 +315,6 @@ def last_donated(message):
     else:
         bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
         del user[str(message.chat.id)]['blood_rh']
-        return ask_blood_rh
 
 
 def thank_you_for_answers(message):
@@ -338,7 +343,7 @@ def infinite_update_loop(delay):
         time.sleep(30)
 
 
-task1 = threading.Thread(target=infinite_update_loop, args=(60,))
+task1 = threading.Thread(target=infinite_update_loop, args=(1,))
 task1.start()
 
 bot.polling()
