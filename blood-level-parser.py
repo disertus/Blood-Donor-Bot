@@ -1,5 +1,7 @@
 import datetime
 import json
+import schedule
+import threading
 import time
 from functools import lru_cache
 
@@ -11,6 +13,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 import config
+
+###################### Parser and Database code ##########################
 
 Base = declarative_base()
 
@@ -96,16 +100,14 @@ class MysqlDatabase:
         session.commit()
 
 
-def repeat_parsing():
-    """Creates an infinite loop, allowing to schedule the execution of functions """
-
-
 parser = Parser('http://kmck.kiev.ua/', 'h4')
 parser.clear_html_tags()
 
 mysqldb = MysqlDatabase(config.db_credentials)
 mysqldb.create_table()
 mysqldb.save_bloodlvl_to_mysql()
+
+####################### Telegram Bot code ##########################
 
 bot = telebot.TeleBot(config.token, True, 2)
 try:
@@ -115,15 +117,106 @@ except FileNotFoundError:
     user = dict()
 
 
-# repeat_parsing()
+def calculate_last_donation_date(message):
+    """Defines the date of last donation in datetime format"""
+
+    if message == '2+ місяців тому':
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=60))
+        return f'{last_donated_date}'
+    elif message == 'Місяць тому':
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=30))
+        return f'{last_donated_date}'
+    elif message == "Два тижні тому":
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=14))
+        return f'{last_donated_date}'
+    elif message == "Тиждень тому":
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
+        return f'{last_donated_date}'
+    else:
+        print('Сталася помилка і бот помер :(')
+        raise ValueError
+
+
+def schedule_notification(last_donation_date: str) -> str:
+    """Defines the notification date based on the date of last donation"""
+
+    date_object = datetime.datetime.strptime(last_donation_date, '%Y-%m-%d')
+    return f'{date_object.date() + datetime.timedelta(days=60)}'
+
+
+def check_if_scheduled_date_is_today(user_id):
+    """Checks if the scheduled notification date is today"""
+
+    if user[user_id]['notify_date'] == f'{datetime.date.today()}':
+        bot.send_message(user_id, 'Клас, настав день для отримання першого сповіщення')
+        return True
+    else:
+        return False
+
+
+def reschedule_notification(user_id):
+    """Reschedules the notification to the next week"""
+    with open('user-table.json', 'w') as json_file:
+        user_db = json.load(json_file)
+        user_db[user_id]['notify_date'] = f'{datetime.date.today() + datetime.timedelta(days=7)}'
+
+
+def check_if_blood_is_low(user_id):
+    """Checks if parsed blood level corresponding to users blood is low"""
+
+    # parsed_blood_lvls -> compatible_with_user_info: dict?
+    user[user_id]['blood_type'] + user_info[id]['blood_rh']
+    if blood_level != "Достатньо":
+        return True
+    elif blood_level == 'Достатньо':
+        return False
+    else:
+        print('An error occurred, sorry pal :(')
+    pass
+
+
+def notify_the_user(user_id, date_time):
+    """Sends a notification including the blood centre location"""
+    # TODO: include send_location of the blood bank
+
+    incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя, довідка на 2 вихідних, і чай з печивком (емодзі)'
+    bot.send_message(user_id, 'Привіт! З моменту останньої здачі крові пройшло більше двох місяців. '
+                              f'Київський центр крові потребує {blood_type}{blood_rh} - рівень {blood_level}\n\n'
+                              f'{incentive_text}')
+    return None
+
+
+def decide_when_to_notify():
+    """Compares the scheduled date with current one, notifies if blood is low, and reschedules if not"""
+
+    for uid in user.keys():
+        notify_today = check_if_scheduled_date_is_today(uid)
+        if notify_today is True:
+    #         blood_low = check_if_blood_is_low(uid)
+    #         if blood_low is True:
+    #             notify_the_user(uid, datetime.tomorrow_9am)
+    #         elif blood_low is False:
+    #             return reschedule_notification(uid)
+    #         else:
+    #             print('ERROR - could not define if the blood level is low')
+    #             raise TypeError
+    # pass
+
+
+def get_user_contacts(self):
+    # TODO: Optional, users may be unwilling to give up personal information
+    # user_name, phone_number
+    pass
+
 
 @bot.message_handler(commands=['help'])
 def bot_info(message):
     """Shows all available commands when user types '/help' """
     rstrt = '/restart - повторно вказати свою групу крові'
     upd = '/update - перевірити запаси крові'
+    interv = '/intervals - інтервали між кроводачами'
     inf = '/info - довідкова інформація'
-    bot.send_message(message.chat.id, f'{rstrt}\n{upd}\n{inf}')
+    bot.send_message(message.chat.id, f'{rstrt}\n{upd}\n{interv}\n{inf}')
 
 
 @bot.message_handler(commands=['info'])
@@ -232,89 +325,23 @@ def thank_you_for_answers(message):
     print(f'Last donated: {message.text}\n', '*' * 50)
 
     user[str(cid)]['last_donated'] = calculate_last_donation_date(message.text)
-    user[str(cid)]['notify_date'] = schedule_donation(user[str(cid)]['last_donated'])
+    user[str(cid)]['notify_date'] = schedule_notification(user[str(cid)]['last_donated'])
     user[str(cid)]['bot_stage'] = 3
     with open('user-table.json', 'w') as json_file:
         json.dump(user, json_file)
 
 
-def calculate_last_donation_date(message):
-    if message == '2+ місяців тому':
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=60))
-        return f'{last_donated_date}'
-    elif message == 'Місяць тому':
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=30))
-        return f'{last_donated_date}'
-    elif message == "Два тижні тому":
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=14))
-        return f'{last_donated_date}'
-    elif message == "Тиждень тому":
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
-        return f'{last_donated_date}'
-    else:
-        print('Сталася помилка і бот помер :*(')
-        raise ValueError
+def infinite_update_loop(delay):
+    schedule.every(delay).minutes.do(decide_when_to_notify)
+    while True:
+        schedule.run_pending()
+        time.sleep(30)
 
 
-# @bot.set_update_listener()
-def schedule_donation(last_donation_date: str) -> str:
-    """Defines the notification date based on last_donated date"""
-    date_object = datetime.datetime.strptime(last_donation_date, '%Y-%m-%d')
-    return f'{date_object.date() + datetime.timedelta(days=60)}'
+task1 = threading.Thread(target=infinite_update_loop, args=(1,))
+task1.start()
 
+task2 = threading.Thread(target=bot.polling())
+task2.start()
 
-def check_if_scheduled_date_is_today(*messages):
-    # TODO: add a weekly recurring task which will notify the user if the scheduled date has come and blood is low
-    # should run as a background task of comparing scheduled date with today's date, and sends a notif
-    for id in user_info.keys():
-        if user_info[id]['notify_date'] == f'{datetime.date.today()}'
-            notification = check_if_blood_is_low()
-            try:
-                notification == True
-                bot.send_message(id, 'Привіт! З моменту останньої здачі крові пройшло більше двох місяців. '
-                                 f'Київський центр крові потребує {blood_type}{blood_rh} - рівень {blood_level}')
-                pass
-            except notification = False:
-                reschedule_donation()
-            if blood_not_low
-
-
-def check_if_blood_is_low():
-    parsed_blood_lvls -> compatible_with_user_info : dict?
-    for id in user_info.keys():
-        user_info[id]['blood_type'] + user_info[id]['blood_rh']
-    if blood_level != "Достатньо":
-        return True
-    elif blood_level == 'Достатньо':
-        return False
-    else:
-        print('An error occurred, sorry pal :(')
-
-
-    print(f'New message recieved at {datetime.datetime.now()}')
-    # notification_text = f'Запас {bloodtype} {bloodlevel} - ТИ нам потрібен'
-    # incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя, довідка на 2 вихідних, і чай з печивком (емодзі)'
-    # bot.send_message(chat_id=users_info[message.chat.id], )
-    pass
-
-
-def reschedule_donation(*messages):
-    # TODO: if blood is not low on scheduled notification date - reschedules the notification to the next week
-
-    pass
-
-
-def notify_if_blood_is_low(message):
-    # TODO: include send_location of the blood bank
-
-    pass
-
-
-def get_user_contacts(self):
-    # TODO: Optional, users may be unwilling to give up personal information
-    # user_name, phone_number
-    pass
-
-
-bot.set_update_listener(check_if_scheduled_date_is_today)
-bot.polling(none_stop=True, interval=1)
+# bot.set_update_listener(check_if_scheduled_date_is_today)
