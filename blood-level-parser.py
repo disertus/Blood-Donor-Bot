@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 
 import config
 
+
 ###################### Parser and Database code ##########################
 
 
@@ -63,9 +64,9 @@ class MysqlDatabase:
 
     class BloodLevelsTable(Base):
         """Creates the blood_by_group table and defines its structure"""
-        # __tablename__ is a compulsory attribute for the Base constructor to work
-        __tablename__ = 'blood_availability'
 
+        # tablename is a compulsory attribute for the Base constructor to work
+        __tablename__ = 'blood_availability'
         # Data types should be imported from the sqlalchemy library before using them
         id = Column(Integer, primary_key=True)
         date = Column(Date)
@@ -102,9 +103,9 @@ class MysqlDatabase:
 parser = Parser('http://kmck.kiev.ua/', 'h4')
 parser.clear_html_tags()
 
-mysqldb = MysqlDatabase(config.db_credentials)
-mysqldb.create_table()
-mysqldb.save_bloodlvl_to_mysql()
+# mysqldb = MysqlDatabase(config.db_credentials)
+# mysqldb.create_table()
+# mysqldb.save_bloodlvl_to_mysql()
 
 ####################### Telegram Bot code ##########################
 
@@ -121,16 +122,16 @@ def calculate_last_donation_date(message):
 
     if message == '2+ місяців тому':
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=60))
-        return f'{last_donated_date}'
+        return str(last_donated_date)
     elif message == 'Місяць тому':
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=30))
-        return f'{last_donated_date}'
+        return str(last_donated_date)
     elif message == "Два тижні тому":
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=14))
-        return f'{last_donated_date}'
+        return str(last_donated_date)
     elif message == "Тиждень тому":
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
-        return f'{last_donated_date}'
+        return str(last_donated_date)
     else:
         print('Сталася помилка і бот помер :(')
         raise ValueError
@@ -140,15 +141,20 @@ def schedule_notification(last_donation_date: str) -> str:
     """Defines the notification date based on the date of last donation"""
 
     date_object = datetime.datetime.strptime(last_donation_date, '%Y-%m-%d')
-    return f'{date_object.date() + datetime.timedelta(days=60)}'
+    return str(date_object.date() + datetime.timedelta(days=60))
 
 
 def check_if_scheduled_date_is_today(user_id):
     """Checks if the scheduled notification date is today"""
-
-    if user[user_id]['notify_date'] == f'{datetime.date.today()}':
+    today = str(datetime.date.today())
+    userinfo = user[user_id]['notify_date']
+    print(today)
+    print(userinfo)
+    if user[user_id]['notify_date'] == str(datetime.date.today()):
+        print('Notification date is due today')
         return True
     else:
+        print('check_if_scheduled - error occurred')
         return False
 
 
@@ -159,8 +165,8 @@ def check_if_blood_is_low(user_id):
     blood_types = ['I(+)', 'II(+)', 'III(+)', 'IV(+)', 'I(-)', 'II(-)', 'III(-)', 'IV(-)']
     blood_levels = {key: value for key, value in zip(blood_types, parsed_info)}
     user_blood = f"{user[user_id]['blood_type']}{user[user_id]['blood_rh']}"
-    print(blood_levels[user_blood])
     if blood_levels[user_blood] != "Достатньо":
+        print(blood_levels[user_blood])
         return True
     elif blood_levels[user_blood] == 'Достатньо':
         bot.send_message(user_id, 'Cхоже, наразі крові твоєї групи достатньо')
@@ -173,40 +179,40 @@ def reschedule_notification(user_id):
     """Reschedules the notification to the next week"""
     with open('user-table.json', 'w') as json_file:
         user_db = json.load(json_file)
-        user_db[user_id]['notify_date'] = f'{datetime.date.today() + datetime.timedelta(days=7)}'
+        user_db[user_id]['notify_date'] = str(datetime.date.today() + datetime.timedelta(days=7))
         json.dump(user_db, json_file, indent=4)  # added indents make the json file more readable
 
 
-def notify_the_user(user_id, date_time):
-    """Sends a notification including the blood centre location"""
+def notify_the_user(user_id):
+    """Sends a notification each monday including the blood centre location"""
     # TODO: include send_location of the blood bank
 
-    incentive_text = '<bold>Не забувай</bold>: здача крові це 3 врятованих життя' \
+    cid = user_id
+    incentive_text = 'Не забувай: здача крові це 3 врятованих життя' \
                      ', довідка на 2 вихідних, і чай з печивком (емодзі)'
-    bot.send_message(user_id, 'Привіт! З моменту останньої здачі крові пройшло більше двох місяців. '
-                              f'Київський центр крові потребує {blood_type}{blood_rh} - рівень {blood_level}\n\n'
-                              f'{incentive_text}')
-    return None
+    bot.send_message(cid,
+                     'Привіт! З моменту твоєї останньої донації пройшло більше двох місяців, а '
+                     f'у Київського Центру Крові закінчується {user[cid]["blood_type"]} {user[cid]["blood_rh"]}\n\n'
+                     f'{incentive_text}')
 
 
 def decide_when_to_notify():
     """Compares the scheduled date with current one, notifies if blood is low, and reschedules if not"""
 
-    for uid in user.keys():
-        notify_today = check_if_scheduled_date_is_today(uid)
-        if notify_today is True:
-            blood_low = check_if_blood_is_low(uid)
-        #         if blood_low is True:
-        #             notify_the_user(uid, datetime.tomorrow_9am)
+    for cid in user.keys():
+        if check_if_scheduled_date_is_today(cid):
+            if check_if_blood_is_low(cid):
+                notify_the_user(cid)
+                # schedule.every(2).minutes.do(notify_the_user, user_id=cid)
+                # schedule.run_pending()
+                # schedule.every().monday.at('09:30').do(notify)
         #         elif blood_low is False:
-        #             return reschedule_notification(uid)
+        #             return reschedule_notification(cid)
         #         else:
         #             print('ERROR - could not define if the blood level is low')
         #             raise TypeError
         else:
-            time.sleep(20)
-            print('Sorry pal, no need to donate blood today')
-    # pass
+            print('Sorry pal, the notification is not due today')
 
 
 def get_user_contacts(self):
@@ -218,7 +224,7 @@ def get_user_contacts(self):
 @bot.message_handler(commands=['help'])
 def bot_info(message):
     """Shows all available commands when user types '/help' """
-    rstrt = '/restart - повторно вказати свою групу крові'
+    rstrt = '/reset - повторно вказати свою групу крові'
     upd = '/update - перевірити запаси крові'
     interv = '/intervals - інтервали між кроводачами'
     inf = '/info - довідкова інформація'
@@ -248,14 +254,14 @@ def check_blood_availability(message):
     # TODO: apply markup formatting to the text
 
 
-@bot.message_handler(commands=['restart'])
+@bot.message_handler(commands=['reset'])
 def delete_user_id(message):
     """Deletes the info about the user from the user-info dict and json db"""
 
     cid = message.chat.id
-    del user[f'{cid}']
-    message.text = '/start'
-    bot.register_next_step_handler(message, welcome_message)
+    del user[str(cid)]
+    message.text = 'start'
+    bot.register_next_step_handler(message, welcome_message(message))
 
 
 @bot.message_handler(commands=['start'])
@@ -268,7 +274,7 @@ def welcome_message(message):
     blood_types_keyboard.row('III - третя', 'IV - четверта')
 
     # TODO: check the bot_stage of the user
-    if f'{cid}' in user:
+    if str(cid) in user:
         bot.send_message(cid, 'Схоже, ти вже в базі користувачів.\n'
                               'Дякую що допомагаєш рятувати життя!\n\n'
                               'Якщо хочеш оновити дані про себе - тисни /reset')
@@ -294,11 +300,12 @@ def welcome_message(message):
 def ask_blood_rh(message):
     """Asks for the blood RH of the user, saves the blood type into a dict"""
     message.text = f'{message.text}'.split()[0]
+    cid = message.chat.id
     if message.text == 'I' or message.text == 'II' or message.text == 'III' or message.text == 'IV':
-        cid = message.chat.id
+
         blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
         blood_types_keyboard.row('(+)')
-        blood_types_keyboard.row('(–)')
+        blood_types_keyboard.row('(-)')
         msg = bot.send_message(cid, 'А тепер вкажи свій резус-фактор:', reply_markup=blood_types_keyboard)
         bot.register_next_step_handler(msg, last_donated)
 
@@ -306,7 +313,7 @@ def ask_blood_rh(message):
         user[str(cid)]['bot_stage'] = 1
         print(f'Blood type: {message.text}')
     else:
-        del user[f'{cid}']
+        del user[str(cid)]
         bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
 
 
