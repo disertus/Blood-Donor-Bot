@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 import config
 
 
-###################### Parser and Database code ##########################
+# Parser and Database code ##########################
 
 
 class Parser:
@@ -46,7 +46,7 @@ class Parser:
 
 
 class DataFrame:
-    def convert_into_dataframe(self):
+    def convert_into_data_frame(self):
         # TODO: read the data from the mysqldb / or just use the latest collected data
         pass
 
@@ -107,7 +107,7 @@ parser.clear_html_tags()
 # mysqldb.create_table()
 # mysqldb.save_bloodlvl_to_mysql()
 
-####################### Telegram Bot code ##########################
+# Telegram Bot code #########################
 
 bot = telebot.TeleBot(config.token, True, 2)
 try:
@@ -223,7 +223,7 @@ def decide_when_to_notify():
     print(start - finish)
 
 
-def get_user_contacts(self):
+def get_user_contacts():
     # TODO: Optional, users may be unwilling to give up personal information
     # user_name, phone_number
     pass
@@ -299,7 +299,8 @@ def welcome_message(message):
         # Displays the Telegram @username and f-l-names of the user, this info is not stored anywhere
         print(
             '*' * 10,
-            f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}" logged in on {datetime.date.today()}',
+            f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}"',
+            f'logged in on {datetime.date.today()}',
             '*' * 10)
 
     # TODO: create a log file recording all the actions (use standard library)
