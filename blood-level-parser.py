@@ -16,8 +16,6 @@ import config
 
 ###################### Parser and Database code ##########################
 
-Base = declarative_base()
-
 
 class Parser:
     """Parses the page and saves the data that has been collected into the mysqldb"""
@@ -52,26 +50,10 @@ class DataFrame:
         pass
 
 
-class BloodLevelsTable(Base):
-    """Creates the blood_by_group table and defines its structure"""
-    # __tablename__ is a compulsory attribute for the Base constructor to work
-    __tablename__ = 'blood_availability'
-
-    # Data types should be imported from the sqlalchemy library before using them
-    id = Column(Integer, primary_key=True)
-    date = Column(Date)
-    one_plus = Column('I (+)', String(50), nullable=False)
-    two_plus = Column('II (+)', String(50), nullable=False)
-    tree_plus = Column('III (+)', String(50), nullable=False)
-    four_plus = Column('IV (+)', String(50), nullable=False)
-    one_minus = Column('I (–)', String(50), nullable=False)
-    two_minus = Column('II (–)', String(50), nullable=False)
-    tree_minus = Column('III (–)', String(50), nullable=False)
-    four_minus = Column('IV (–)', String(50), nullable=False)
-
-
 class MysqlDatabase:
     """Class containing all the functions related to db's CRUD"""
+
+    Base = declarative_base()
 
     def __init__(self, db_credentials: str):
         self.mysql_credentials = db_credentials
@@ -79,24 +61,41 @@ class MysqlDatabase:
         # for convenience pymysql is used instead of the official mysql.connector
         # (the latter is maintained by MySQL team)
 
+    class BloodLevelsTable(Base):
+        """Creates the blood_by_group table and defines its structure"""
+        # __tablename__ is a compulsory attribute for the Base constructor to work
+        __tablename__ = 'blood_availability'
+
+        # Data types should be imported from the sqlalchemy library before using them
+        id = Column(Integer, primary_key=True)
+        date = Column(Date)
+        one_plus = Column('I (+)', String(50), nullable=False)
+        two_plus = Column('II (+)', String(50), nullable=False)
+        tree_plus = Column('III (+)', String(50), nullable=False)
+        four_plus = Column('IV (+)', String(50), nullable=False)
+        one_minus = Column('I (–)', String(50), nullable=False)
+        two_minus = Column('II (–)', String(50), nullable=False)
+        tree_minus = Column('III (–)', String(50), nullable=False)
+        four_minus = Column('IV (–)', String(50), nullable=False)
+
     def create_table(self):
         # 'create_all' method creates the structure outlined in BloodLevelsTable
         return Base.metadata.create_all(self.engine)
 
     def save_bloodlvl_to_mysql(self):
         """Saves the clean information into the MysqlDB"""
-        Session = sessionmaker(bind=self.engine)
-        session = Session()
+        session = sessionmaker(bind=self.engine)
+        session = session()
         session.add_all([
-            BloodLevelsTable(date=datetime.date.today(),
-                             one_plus=parser.clear_html_tags()[0],
-                             two_plus=parser.clear_html_tags()[1],
-                             tree_plus=parser.clear_html_tags()[2],
-                             four_plus=parser.clear_html_tags()[3],
-                             one_minus=parser.clear_html_tags()[4],
-                             two_minus=parser.clear_html_tags()[5],
-                             tree_minus=parser.clear_html_tags()[6],
-                             four_minus=parser.clear_html_tags()[7])])
+            self.BloodLevelsTable(date=datetime.date.today(),
+                                  one_plus=parser.clear_html_tags()[0],
+                                  two_plus=parser.clear_html_tags()[1],
+                                  tree_plus=parser.clear_html_tags()[2],
+                                  four_plus=parser.clear_html_tags()[3],
+                                  one_minus=parser.clear_html_tags()[4],
+                                  two_minus=parser.clear_html_tags()[5],
+                                  tree_minus=parser.clear_html_tags()[6],
+                                  four_minus=parser.clear_html_tags()[7])])
         session.commit()
 
 
@@ -175,6 +174,7 @@ def reschedule_notification(user_id):
     with open('user-table.json', 'w') as json_file:
         user_db = json.load(json_file)
         user_db[user_id]['notify_date'] = f'{datetime.date.today() + datetime.timedelta(days=7)}'
+        json.dump(user_db, json_file, indent=4)  # added indents make the json file more readable
 
 
 def notify_the_user(user_id, date_time):
@@ -196,13 +196,16 @@ def decide_when_to_notify():
         notify_today = check_if_scheduled_date_is_today(uid)
         if notify_today is True:
             blood_low = check_if_blood_is_low(uid)
-    #         if blood_low is True:
-    #             notify_the_user(uid, datetime.tomorrow_9am)
-    #         elif blood_low is False:
-    #             return reschedule_notification(uid)
-    #         else:
-    #             print('ERROR - could not define if the blood level is low')
-    #             raise TypeError
+        #         if blood_low is True:
+        #             notify_the_user(uid, datetime.tomorrow_9am)
+        #         elif blood_low is False:
+        #             return reschedule_notification(uid)
+        #         else:
+        #             print('ERROR - could not define if the blood level is low')
+        #             raise TypeError
+        else:
+            time.sleep(20)
+            print('Sorry pal, no need to donate blood today')
     # pass
 
 
@@ -245,6 +248,16 @@ def check_blood_availability(message):
     # TODO: apply markup formatting to the text
 
 
+@bot.message_handler(commands=['restart'])
+def delete_user_id(message):
+    """Deletes the info about the user from the user-info dict and json db"""
+
+    cid = message.chat.id
+    del user[f'{cid}']
+    message.text = '/start'
+    bot.register_next_step_handler(message, welcome_message)
+
+
 @bot.message_handler(commands=['start'])
 def welcome_message(message):
     """Displays available blood types and asks to choose one from the list"""
@@ -255,7 +268,7 @@ def welcome_message(message):
     blood_types_keyboard.row('III - третя', 'IV - четверта')
 
     # TODO: check the bot_stage of the user
-    if str(cid) in user:
+    if f'{cid}' in user:
         bot.send_message(cid, 'Схоже, ти вже в базі користувачів.\n'
                               'Дякую що допомагаєш рятувати життя!\n\n'
                               'Якщо хочеш оновити дані про себе - тисни /reset')
@@ -280,7 +293,8 @@ def welcome_message(message):
 
 def ask_blood_rh(message):
     """Asks for the blood RH of the user, saves the blood type into a dict"""
-    if message.text == 'I - перша' or message.text == 'II - друга' or message.text == 'III - третя' or message.text == 'IV - четверта':
+    message.text = f'{message.text}'.split()[0]
+    if message.text == 'I' or message.text == 'II' or message.text == 'III' or message.text == 'IV':
         cid = message.chat.id
         blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
         blood_types_keyboard.row('(+)')
@@ -292,6 +306,7 @@ def ask_blood_rh(message):
         user[str(cid)]['bot_stage'] = 1
         print(f'Blood type: {message.text}')
     else:
+        del user[f'{cid}']
         bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
 
 
@@ -332,8 +347,12 @@ def thank_you_for_answers(message):
     user[str(cid)]['last_donated'] = calculate_last_donation_date(message.text)
     user[str(cid)]['notify_date'] = schedule_notification(user[str(cid)]['last_donated'])
     user[str(cid)]['bot_stage'] = 3
+    save_to_json_db(user)
+
+
+def save_to_json_db(dictionary: dict):
     with open('user-table.json', 'w') as json_file:
-        json.dump(user, json_file)
+        json.dump(dictionary, json_file, indent=4)
 
 
 def infinite_update_loop(delay):
