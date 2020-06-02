@@ -193,7 +193,7 @@ def notify_the_user(user_id):
                      f'{incentive_text}')
 
 
-def decide_when_to_notify():
+def decide_when_to_notify(notify_day: str, notify_time: str):
     """Compares the scheduled date with current one, notifies if blood is low, and reschedules if not"""
 
     start = time.time()
@@ -202,9 +202,9 @@ def decide_when_to_notify():
         for cid in user_table.keys():
             if check_if_blood_is_low(cid, user_table):
                 if check_if_scheduled_date_is_today(cid, user_table):
-                    if time.strftime('%a') == 'Mon':
+                    if time.strftime('%a') == notify_day:
                         print('Indeed, today is Monday')
-                        if time.strftime('%H') == '17':
+                        if time.strftime('%H') == notify_time:
                             notify_the_user(cid)
                             reschedule_notification(cid, user_table, 7)
                         else:
@@ -373,7 +373,7 @@ def save_to_json_db(dictionary: dict):
 
 
 def infinite_update_loop(delay):
-    schedule.every(delay).minutes.do(decide_when_to_notify)
+    schedule.every(delay).minutes.do(decide_when_to_notify, notif_date='Tue', notif_time='12')
     while True:
         schedule.run_pending()
         time.sleep(15)
