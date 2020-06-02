@@ -206,8 +206,8 @@ class Notifier:
                          ', довідка на 2 вихідних, і чай з печивком (емодзі)'
         bot.send_message(user_id,
                          'Привіт! З моменту твоєї останньої донації пройшло більше двох місяців, а '
-                         f'у Київського Центру Крові закінчується '
-                         '{user[user_id]["blood_type"]} {user[user_id]["blood_rh"]}\n\n'
+                         'у Київського Центру Крові закінчується '
+                         f'{self.user_table[user_id]["blood_type"]} {self.user_table[user_id]["blood_rh"]}\n\n'
                          f'{incentive_text}',
                          reply_markup=keyboard)
 
