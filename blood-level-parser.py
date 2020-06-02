@@ -310,7 +310,8 @@ def ask_blood_rh(message):
     """Asks for the blood RH of the user, saves the blood type into a dict"""
     message.text = f'{message.text}'.split()[0]
     cid = message.chat.id
-    if message.text == 'I' or message.text == 'II' or message.text == 'III' or message.text == 'IV':
+    # replacing '==' with 'in set()' expression is more concise and provides better performance
+    if message.text in {'I', 'II', 'III', 'IV'}:
 
         blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
         blood_types_keyboard.row('(+)')
@@ -328,7 +329,7 @@ def ask_blood_rh(message):
 
 def last_donated(message):
     """Asks when approximately the user last donated blood. Info is used for reminders"""
-    if message.text == '(+)' or message.text == '(-)':
+    if message.text in {'(+)', '(-)'}:
         cid = message.chat.id
         donation_dates_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
         donation_dates_keyboard.row("2+ місяців тому", "Місяць тому")
@@ -378,9 +379,9 @@ def infinite_update_loop(delay):
         time.sleep(15)
 
 
-task1 = threading.Thread(target=infinite_update_loop, args=(10,))
+task1 = threading.Thread(target=infinite_update_loop, args=(10,), daemon=True)
 task1.start()
 
-bot.polling()
+bot.polling(interval=1)
 
 # bot.set_update_listener(check_if_scheduled_date_is_today)
