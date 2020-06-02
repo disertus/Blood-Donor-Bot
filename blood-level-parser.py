@@ -195,18 +195,18 @@ class Notifier:
         # TODO: include send_location of the blood bank
 
         keyboard = telebot.types.InlineKeyboardMarkup()
-        dont_disturb_week = telebot.types.InlineKeyboardButton(text='Не турбувати тиждень',
+        dont_disturb_week = telebot.types.InlineKeyboardButton(text='Нагадай пізніше (Тиждень)',
                                                                callback_data='add_one_week')
-        dont_disturb_two_months = telebot.types.InlineKeyboardButton(text='Щойно здав :) Не турбувати два місяці',
+        dont_disturb_two_months = telebot.types.InlineKeyboardButton(text='Щойно здав :) (Два місяці)',
                                                                      callback_data='add_two_months')
         keyboard.row(dont_disturb_week)
         keyboard.row(dont_disturb_two_months)
 
-        incentive_text = 'Не забувай: здача крові це 3 врятованих життя' \
-                         ', довідка на 2 вихідних, і чай з печивком (емодзі)'
+        incentive_text = '**Не забувай:** здача крові це 3 врятованих життя' \
+                         ', довідка на **2 вихідних**, і чай з печивком (емодзі)'
         bot.send_message(user_id,
-                         'Привіт! З моменту твоєї останньої донації пройшло більше двох місяців, а '
-                         'у Київського Центру Крові закінчується '
+                         'Привіт! З моменту твоєї останньої донації пройшло більше двох місяців, '
+                         'а у Київського Центру Крові закінчується '
                          f'{self.user_table[user_id]["blood_type"]} {self.user_table[user_id]["blood_rh"]}\n\n'
                          f'{incentive_text}',
                          reply_markup=keyboard)
@@ -285,12 +285,12 @@ def check_blood_availability(message):
 
 @bot.message_handler(commands=['reset'])
 def delete_user_id(message):
-    """Deletes the info about the user from the user-info dict and json db"""
+    """Resets the bot_stage info in the user dict and json db"""
 
     cid = message.chat.id
-    del user[str(cid)]
-    message.text = 'start'
-    bot.register_next_step_handler(message, welcome_message(message))
+    user[str(cid)]['bot_stage'] = 0
+    message.text = '/start'
+    bot.register_next_step_handler(message, welcome_message)
 
 
 @bot.message_handler(commands=['start'])
@@ -303,7 +303,7 @@ def welcome_message(message):
     blood_types_keyboard.row('III - третя', 'IV - четверта')
 
     # TODO: check the bot_stage of the user
-    if str(cid) in user:
+    if user[str(cid)]['bot_stage'] not in {0, None}:
         bot.send_message(cid, 'Схоже, ти вже в базі користувачів.\n'
                               'Дякую що допомагаєш рятувати життя!\n\n'
                               'Якщо хочеш оновити дані про себе - тисни /reset')
@@ -395,11 +395,11 @@ def save_to_json_db(dictionary: dict):
 
 # Turn on the notifications with specific parameters
 
-notifier = Notifier('Tue', '13')
+notifier = Notifier('Tue', '14')
 
 task1 = threading.Thread(target=notifier.infinite_update_loop, args=(15,), daemon=True)
 task1.start()
 
-bot.polling(interval=1)
+bot.polling(none_stop=True, interval=1)
 
 # bot.set_update_listener(check_if_scheduled_date_is_today)
