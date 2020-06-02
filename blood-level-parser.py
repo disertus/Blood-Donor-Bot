@@ -133,7 +133,7 @@ def calculate_last_donation_date(message):
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
         return str(last_donated_date)
     else:
-        print('Сталася помилка і бот помер :(')
+        print('Сталася помилка - бот взяв і вмер :(')
         raise ValueError
 
 
@@ -144,73 +144,89 @@ def schedule_notification(last_donation_date: str) -> str:
     return str(date_object.date() + datetime.timedelta(days=60))
 
 
-def check_if_blood_is_low(user_id, json_dict):
-    """Checks if parsed blood level corresponding to users blood is low"""
+class Notifier:
 
-    parsed_info = parser.clear_html_tags()
-    blood_types = ['I(+)', 'II(+)', 'III(+)', 'IV(+)', 'I(-)', 'II(-)', 'III(-)', 'IV(-)']
-    blood_levels = {key: value for key, value in zip(blood_types, parsed_info)}  # transforming two lists into a dict
-    user_blood = f"{json_dict[user_id]['blood_type']}{json_dict[user_id]['blood_rh']}"
-    if blood_levels[user_blood] != "Достатньо":
-        print('Схоже, існує необхідність у крові твоєї групи')
-        return True
-    elif blood_levels[user_blood] == 'Достатньо':
-        print('Схоже, наразі крові твоєї групи достатньо')
-        return False
-    else:
-        print('An error occurred, sorry pal :(  --- check_if_blood_is_low')
+    def __init__(self, notify_date, notify_time):
+        self.date = notify_date
+        self.time = notify_time
+        self.user_table = self.dict_from_json('user-table.json')
 
+    def dict_from_json(self, filename: str):
+        with open(filename, 'r') as file:
+            user_info = json.load(file)
+        return user_info
 
-def check_if_scheduled_date_is_today(user_id, json_dict):
-    """Checks if the scheduled notification date is today"""
+    def check_if_blood_is_low(self, user_id: str, json_dict: dict):
+        """Checks if parsed blood level corresponding to users blood is low"""
 
-    if json_dict[user_id]['notify_date'] == str(datetime.date.today()):
-        print('Notification date is due today')
-        return True
-    else:
-        print('check_if_scheduled - error occurred')
-        return False
+        parser_info = parser.clear_html_tags()
+        blood_types = ['I(+)', 'II(+)', 'III(+)', 'IV(+)', 'I(-)', 'II(-)', 'III(-)', 'IV(-)']
+        blood_levels = {key: value for key, value in
+                        zip(blood_types, parser_info)}  # transforming two lists into a dict
+        user_blood = f"{json_dict[user_id]['blood_type']}{json_dict[user_id]['blood_rh']}"
+        if blood_levels[user_blood] != "Достатньо":
+            print('Схоже, існує необхідність у крові твоєї групи')
+            return True
+        elif blood_levels[user_blood] == 'Достатньо':
+            print('Схоже, наразі крові твоєї групи достатньо')
+            return False
+        else:
+            print('An error occurred, sorry pal :(  --- check_if_blood_is_low')
 
+    def check_if_scheduled_date_is_today(self, user_id, json_dict):
+        """Checks if the scheduled notification date is today"""
 
-def reschedule_notification(user_id, json_dict, delay: int):
-    """Reschedules the notification to the next week"""
+        if json_dict[user_id]['notify_date'] == str(datetime.date.today()):
+            print('Notification date is due today')
+            return True
+        else:
+            print('check_if_scheduled - error occurred')
+            return False
 
-    json_dict[user_id]['notify_date'] = str(datetime.date.today() + datetime.timedelta(days=delay))
-    with open('user-table.json', 'w') as json_file:
-        json.dump(json_dict, json_file, indent=4)  # added indents make the json file more readable
+    def reschedule_notification(self, user_id: str, json_dict: dict, delay: int):
+        """Reschedules the notification to the next week"""
 
+        json_dict[user_id]['notify_date'] = str(datetime.date.today() + datetime.timedelta(days=delay))
+        with open('user-table.json', 'w') as json_file:
+            json.dump(json_dict, json_file, indent=4)  # added indents make the json file more readable
 
-def notify_the_user(user_id):
-    """Sends a notification each monday including the blood centre location"""
-    # TODO: include send_location of the blood bank
+    def notify_the_user(self, user_id):
+        """Sends a notification each monday including the blood centre location"""
+        # TODO: include send_location of the blood bank
 
-    cid = user_id
-    incentive_text = 'Не забувай: здача крові це 3 врятованих життя' \
-                     ', довідка на 2 вихідних, і чай з печивком (емодзі)'
-    bot.send_message(cid,
-                     'Привіт! З моменту твоєї останньої донації пройшло більше двох місяців, а '
-                     f'у Київського Центру Крові закінчується {user[cid]["blood_type"]} {user[cid]["blood_rh"]}\n\n'
-                     f'{incentive_text}')
+        keyboard = telebot.types.InlineKeyboardMarkup()
+        dont_disturb_week = telebot.types.InlineKeyboardButton(text='Не турбувати тиждень',
+                                                               callback_data='add_one_week')
+        dont_disturb_two_months = telebot.types.InlineKeyboardButton(text='Щойно здав :) Не турбувати два місяці',
+                                                                     callback_data='add_two_months')
+        keyboard.row(dont_disturb_week)
+        keyboard.row(dont_disturb_two_months)
 
+        incentive_text = 'Не забувай: здача крові це 3 врятованих життя' \
+                         ', довідка на 2 вихідних, і чай з печивком (емодзі)'
+        bot.send_message(user_id,
+                         'Привіт! З моменту твоєї останньої донації пройшло більше двох місяців, а '
+                         f'у Київського Центру Крові закінчується '
+                         '{user[user_id]["blood_type"]} {user[user_id]["blood_rh"]}\n\n'
+                         f'{incentive_text}',
+                         reply_markup=keyboard)
 
-def decide_when_to_notify(notify_day: str, notify_time: str):
-    """Compares the scheduled date with current one, notifies if blood is low, and reschedules if not"""
+    def decide_when_to_notify(self):
+        """Compares the scheduled date with current one, notifies if blood is low, and reschedules if not"""
 
-    start = time.time()
-    with open('user-table.json', 'r') as json_file:
-        user_table = json.load(json_file)
-        for cid in user_table.keys():
-            if check_if_blood_is_low(cid, user_table):
-                if check_if_scheduled_date_is_today(cid, user_table):
-                    if time.strftime('%a') == notify_day:
+        start = time.time()
+        for cid in self.user_table.keys():
+            if self.check_if_blood_is_low(cid, self.user_table):
+                if self.check_if_scheduled_date_is_today(cid, self.user_table):
+                    if time.strftime('%a') == self.date:
                         print('Indeed, today is Monday')
-                        if time.strftime('%H') == notify_time:
-                            notify_the_user(cid)
-                            reschedule_notification(cid, user_table, 7)
+                        if time.strftime('%H') == self.time:
+                            self.notify_the_user(cid)
+                            self.reschedule_notification(cid, self.user_table, 7)
                         else:
                             pass
                     else:
-                        reschedule_notification(cid, user_table, 1)
+                        self.reschedule_notification(cid, self.user_table, 1)
                     # schedule.every().monday.at('09:30').do(notify)
             #         elif blood_low is False:
             #             return reschedule_notification(cid)
@@ -219,14 +235,19 @@ def decide_when_to_notify(notify_day: str, notify_time: str):
             #             raise TypeError
             else:
                 print('Sorry pal, the notification is not due today')
-    finish = time.time()
-    print(start - finish)
+        finish = time.time()
+        print(start - finish)
 
+    def infinite_update_loop(self, delay):
+        schedule.every(delay).minutes.do(self.decide_when_to_notify)
+        while True:
+            schedule.run_pending()
+            time.sleep(15)
 
-def get_user_contacts():
-    # TODO: Optional, users may be unwilling to give up personal information
-    # user_name, phone_number
-    pass
+    def get_user_contacts(self):
+        # TODO: Optional, users may be unwilling to give up personal information
+        # user_name, phone_number
+        pass
 
 
 @bot.message_handler(commands=['help'])
@@ -372,14 +393,11 @@ def save_to_json_db(dictionary: dict):
         json.dump(dictionary, json_file, indent=4)
 
 
-def infinite_update_loop(delay):
-    schedule.every(delay).minutes.do(decide_when_to_notify, notif_date='Tue', notif_time='12')
-    while True:
-        schedule.run_pending()
-        time.sleep(15)
+# Turn on the notifications with specific parameters
 
+notifier = Notifier('Tue', '13')
 
-task1 = threading.Thread(target=infinite_update_loop, args=(10,), daemon=True)
+task1 = threading.Thread(target=notifier.infinite_update_loop, args=(15,), daemon=True)
 task1.start()
 
 bot.polling(interval=1)
