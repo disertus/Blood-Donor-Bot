@@ -397,6 +397,7 @@ def save_to_json_db(dictionary: dict):
 
 notifier = Notifier('Tue', '14')
 
+
 task1 = threading.Thread(target=notifier.infinite_update_loop, args=(15,), daemon=True)
 task1.start()
 
