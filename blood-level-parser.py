@@ -191,6 +191,9 @@ class Notifier:
         with open('user-table.json', 'w') as json_file:
             json.dump(json_dict, json_file, indent=4)  # added indents make the json file more readable
 
+    def send_blood_bank_location(self, user_id):
+        bot.send_location(user_id, 50.475870, 30.441694)
+
     def notify_the_user(self, user_id):
         """Sends a notification each monday including the blood centre location"""
         # TODO: include send_location of the blood bank
@@ -211,6 +214,7 @@ class Notifier:
                          f'{self.user_table[user_id]["blood_type"]} {self.user_table[user_id]["blood_rh"]}\n\n'
                          f'{incentive_text}',
                          reply_markup=keyboard)
+        self.send_blood_bank_location(user_id)
 
     def decide_when_to_notify(self):
         """Compares the scheduled date with current one, notifies if blood is low, and reschedules if not"""
@@ -219,6 +223,7 @@ class Notifier:
         for cid in self.user_table.keys():
             if self.check_if_blood_is_low(cid, self.user_table):
                 if self.check_if_scheduled_date_is_today(cid, self.user_table):
+                    print(time.strftime('%a'))
                     if time.strftime('%a') == self.date:
                         print('Indeed, today is Monday')
                         if time.strftime('%H') == self.time:
@@ -271,11 +276,11 @@ def save_to_json_db(dictionary: dict):
 @bot.message_handler(commands=['help'])
 def bot_info(message):
     """Shows all available commands when user types '/help' """
-    rstrt = '/reset - повторно вказати свою групу крові'
+    rst = '/reset - повторно вказати свою групу крові'
     upd = '/update - перевірити запаси крові'
-    interv = '/intervals - інтервали між кроводачами'
+    intrv = '/intervals - інтервали між кроводачами'
     inf = '/info - довідкова інформація'
-    bot.send_message(message.chat.id, f'{rstrt}\n{upd}\n{interv}\n{inf}')
+    bot.send_message(message.chat.id, f'{rst}\n{upd}\n{intrv}\n{inf}')
 
 
 @bot.message_handler(commands=['info'])
@@ -399,7 +404,7 @@ def thank_you_for_answers(message):
                               f'якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}',
                          reply_markup=keyboard_remove)
 
-        print(f'Last donated: {message.text}\n', '*' * 50)
+        print(f'Last donated: {message.text}\n', '*' * 80)
 
         user[str(cid)]['last_donated'] = calculate_last_donation_date(message)
         user[str(cid)]['notify_date'] = schedule_notification(user[str(cid)]['last_donated'])
@@ -412,9 +417,9 @@ def thank_you_for_answers(message):
 
 # Turn on the notifications with specific parameters
 
-notifier = Notifier('Tue', '14')
+notifier = Notifier('Mon', '13')
 
-task1 = threading.Thread(target=notifier.infinite_update_loop, args=(15,))
+task1 = threading.Thread(target=notifier.infinite_update_loop, args=(1,))
 task1.start()
 
 bot.polling(none_stop=True, interval=1)
