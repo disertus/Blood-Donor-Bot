@@ -135,7 +135,7 @@ def calculate_last_donation_date(message):
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
         return str(last_donated_date)
     else:
-        return error_try_again(cid)
+        return unexpected_entry_handler(cid)
 
 
 def schedule_notification(last_donation_date: str) -> str:
@@ -251,7 +251,7 @@ class Notifier:
         pass
 
 
-def error_try_again(chat_id):
+def unexpected_entry_handler(chat_id):
     user[str(chat_id)]['bot_stage'] = 0
     back_to_start = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     back_to_start.add('/start')
@@ -306,7 +306,7 @@ def delete_user_id(message):
     """Resets the bot_stage info in the user dict and json db"""
 
     cid = message.chat.id
-    return error_try_again(cid)
+    return unexpected_entry_handler(cid)
 
 
 @bot.message_handler(commands=['start'])
@@ -360,7 +360,7 @@ def ask_blood_rh(message):
         print(f'Blood type: {message.text}')
     else:
         dummy_bot_error(cid)
-        error_try_again(cid)
+        unexpected_entry_handler(cid)
 
 
 def last_donated(message):
@@ -383,7 +383,7 @@ def last_donated(message):
 
     else:
         dummy_bot_error(cid)
-        error_try_again(cid)
+        unexpected_entry_handler(cid)
 
 
 def thank_you_for_answers(message):
@@ -407,14 +407,14 @@ def thank_you_for_answers(message):
         save_to_json_db(user)
     else:
         dummy_bot_error(cid)
-        error_try_again(cid)
+        unexpected_entry_handler(cid)
 
 
 # Turn on the notifications with specific parameters
 
 notifier = Notifier('Tue', '14')
 
-task1 = threading.Thread(target=notifier.infinite_update_loop, args=(15,), daemon=True)
+task1 = threading.Thread(target=notifier.infinite_update_loop, args=(15,))
 task1.start()
 
 bot.polling(none_stop=True, interval=1)
