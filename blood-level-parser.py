@@ -120,21 +120,22 @@ except FileNotFoundError:
 def calculate_last_donation_date(message):
     """Defines the date of last donation in datetime format"""
 
-    if message == '2+ місяців тому':
+    cid = message.chat.id
+    msg = message.text
+    if msg == '2+ місяців тому':
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=60))
         return str(last_donated_date)
-    elif message == 'Місяць тому':
+    elif msg == 'Місяць тому':
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=30))
         return str(last_donated_date)
-    elif message == "Два тижні тому":
+    elif msg == "Два тижні тому":
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=14))
         return str(last_donated_date)
-    elif message == "Тиждень тому":
+    elif msg == "Тиждень тому":
         last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
         return str(last_donated_date)
     else:
-        print('Сталася помилка - бот взяв і вмер :(')
-        raise ValueError
+        return error_try_again(cid)
 
 
 def schedule_notification(last_donation_date: str) -> str:
@@ -250,6 +251,23 @@ class Notifier:
         pass
 
 
+def error_try_again(chat_id):
+    user[str(chat_id)]['bot_stage'] = 0
+    back_to_start = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    back_to_start.add('/start')
+    bot.send_message(chat_id, 'Натисни /start і вкажи свої дані знову',
+                     reply_markup=back_to_start)
+
+
+def dummy_bot_error(chat_id):
+    bot.send_message(chat_id, 'Дурник-бот не зрозумів :( ')
+
+
+def save_to_json_db(dictionary: dict):
+    with open('user-table.json', 'w') as json_file:
+        json.dump(dictionary, json_file, indent=4)
+
+
 @bot.message_handler(commands=['help'])
 def bot_info(message):
     """Shows all available commands when user types '/help' """
@@ -288,9 +306,7 @@ def delete_user_id(message):
     """Resets the bot_stage info in the user dict and json db"""
 
     cid = message.chat.id
-    user[str(cid)]['bot_stage'] = 0
-    message.text = '/start'
-    bot.register_next_step_handler(message, welcome_message)
+    return error_try_again(cid)
 
 
 @bot.message_handler(commands=['start'])
@@ -303,11 +319,10 @@ def welcome_message(message):
     blood_types_keyboard.row('III - третя', 'IV - четверта')
 
     # TODO: check the bot_stage of the user
-    if user[str(cid)]['bot_stage'] not in {0, None}:
+    if user[str(cid)]['bot_stage'] == 3:
         bot.send_message(cid, 'Схоже, ти вже в базі користувачів.\n'
                               'Дякую що допомагаєш рятувати життя!\n\n'
                               'Якщо хочеш оновити дані про себе - тисни /reset')
-
     else:
         msg = bot.send_message(
             cid, 'Привіт! Готовий рятувати життя? \nВкажи свою групу крові: ', reply_markup=blood_types_keyboard)
@@ -344,14 +359,15 @@ def ask_blood_rh(message):
         user[str(cid)]['bot_stage'] = 1
         print(f'Blood type: {message.text}')
     else:
-        del user[str(cid)]
-        bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
+        dummy_bot_error(cid)
+        error_try_again(cid)
 
 
 def last_donated(message):
     """Asks when approximately the user last donated blood. Info is used for reminders"""
+
+    cid = message.chat.id
     if message.text in {'(+)', '(-)'}:
-        cid = message.chat.id
         donation_dates_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
         donation_dates_keyboard.row("2+ місяців тому", "Місяць тому")
         donation_dates_keyboard.row("Два тижні тому", "Тиждень тому")
@@ -366,31 +382,32 @@ def last_donated(message):
         print(f'Blood Rh: {message.text}')
 
     else:
-        bot.send_message(message.chat.id, 'Дурник-бот не зрозумів :( Натисни /help і вибери команду зі списку')
-        del user[str(message.chat.id)]['blood_rh']
+        dummy_bot_error(cid)
+        error_try_again(cid)
 
 
 def thank_you_for_answers(message):
     """Thanks for the information, shows a list of available commands, saves the answers locally to users-info.json"""
+
     cid = message.chat.id
-    emoji = u'\U0001F618'
-    quest = 'Переглянути повний список функцій - тисни /help'
-    keyboard_remove = telebot.types.ReplyKeyboardRemove(selective=True)
-    bot.send_message(cid, 'All done!\nТепер я надсилатиму тобі сповіщення, '
-                          f'якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}',
-                     reply_markup=keyboard_remove)
+    possible_dates = {"2+ місяців тому", "Місяць тому", "Два тижні тому", "Тиждень тому"}
+    if message.text in possible_dates:
+        emoji = u'\U0001F618'
+        quest = 'Переглянути повний список функцій - тисни /help'
+        keyboard_remove = telebot.types.ReplyKeyboardRemove(selective=True)
+        bot.send_message(cid, 'All done!\nТепер я надсилатиму тобі сповіщення, '
+                              f'якщо виникне необхідність у крові твоєї групи! {emoji}\n\n{quest}',
+                         reply_markup=keyboard_remove)
 
-    print(f'Last donated: {message.text}\n', '*' * 50)
+        print(f'Last donated: {message.text}\n', '*' * 50)
 
-    user[str(cid)]['last_donated'] = calculate_last_donation_date(message.text)
-    user[str(cid)]['notify_date'] = schedule_notification(user[str(cid)]['last_donated'])
-    user[str(cid)]['bot_stage'] = 3
-    save_to_json_db(user)
-
-
-def save_to_json_db(dictionary: dict):
-    with open('user-table.json', 'w') as json_file:
-        json.dump(dictionary, json_file, indent=4)
+        user[str(cid)]['last_donated'] = calculate_last_donation_date(message)
+        user[str(cid)]['notify_date'] = schedule_notification(user[str(cid)]['last_donated'])
+        user[str(cid)]['bot_stage'] = 3
+        save_to_json_db(user)
+    else:
+        dummy_bot_error(cid)
+        error_try_again(cid)
 
 
 # Turn on the notifications with specific parameters
