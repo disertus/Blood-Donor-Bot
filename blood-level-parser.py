@@ -145,6 +145,15 @@ def schedule_notification(last_donation_date: str) -> str:
     return str(date_object.date() + datetime.timedelta(days=60))
 
 
+def measure_execution_time(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        func(*args, **kwargs)
+        end = time.time()
+        return print(start - end)
+    return wrapper
+
+
 class Notifier:
 
     def __init__(self, notify_date, notify_time):
@@ -191,9 +200,6 @@ class Notifier:
         with open('user-table.json', 'w') as json_file:
             json.dump(json_dict, json_file, indent=4)  # added indents make the json file more readable
 
-    def send_blood_bank_location(self, user_id):
-        bot.send_location(user_id, 50.475870, 30.441694)
-
     def notify_the_user(self, user_id):
         """Sends a notification each monday including the blood centre location"""
         # TODO: include send_location of the blood bank
@@ -206,20 +212,19 @@ class Notifier:
         keyboard.row(dont_disturb_week)
         keyboard.row(dont_disturb_two_months)
 
-        incentive_text = '**Не забувай:** здача крові це 3 врятованих життя' \
-                         ', довідка на **2 вихідних**, і чай з печивком (емодзі)'
+        incentive_text = 'Не забувай: здача крові це 3 врятованих життя' \
+                         ', довідка на 2 вихідних, і чай з печивком (емодзі)'
         bot.send_message(user_id,
                          'Привіт! З моменту твоєї останньої донації пройшло більше двох місяців, '
                          'а у Київського Центру Крові закінчується '
                          f'{self.user_table[user_id]["blood_type"]} {self.user_table[user_id]["blood_rh"]}\n\n'
                          f'{incentive_text}',
                          reply_markup=keyboard)
-        self.send_blood_bank_location(user_id)
 
+    @measure_execution_time
     def decide_when_to_notify(self):
         """Compares the scheduled date with current one, notifies if blood is low, and reschedules if not"""
 
-        start = time.time()
         for cid in self.user_table.keys():
             if self.check_if_blood_is_low(cid, self.user_table):
                 if self.check_if_scheduled_date_is_today(cid, self.user_table):
@@ -241,8 +246,6 @@ class Notifier:
             #             raise TypeError
             else:
                 print('Sorry pal, the notification is not due today')
-        finish = time.time()
-        print(start - finish)
 
     def infinite_update_loop(self, delay):
         schedule.every(delay).minutes.do(self.decide_when_to_notify)
@@ -280,13 +283,20 @@ def bot_info(message):
     upd = '/update - перевірити запаси крові'
     intrv = '/intervals - інтервали між кроводачами'
     inf = '/info - довідкова інформація'
-    bot.send_message(message.chat.id, f'{rst}\n{upd}\n{intrv}\n{inf}')
+    loc = '/location - місцезнаходження Банку Крові на карті'
+    bot.send_message(message.chat.id, f'{rst}\n{upd}\n{intrv}\n{loc}\n{inf}')
 
 
 @bot.message_handler(commands=['info'])
 def donor_info(message):
     """Sends a link to the Municipal Blood Centre for more information"""
     bot.send_message(message.chat.id, 'Більше інформації про процедуру та пункти здачі крові на kmck.kiev.ua')
+
+
+@bot.message_handler(commands=['location'])
+def send_blood_bank_location(message):
+    cid = message.chat.id
+    bot.send_location(cid, 50.475870, 30.441694)
 
 
 @bot.message_handler(commands=['update'])
