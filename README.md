@@ -11,6 +11,8 @@ Bot's notification system should raise people's awareness about the existing sho
 - Informs the users when there is a lack of blood at the blood bank if their blood type matches
 - Collects the chronological data about the availability of specific blood types
 
+![Donor notify bot] (https://i.ibb.co/VvX1k57/Screenshot-from-2020-06-15-11-23-37.png)
+
 This bot could become scalable to the different blood banks in other cities. 
 
 Check it out in action at @donor_notify_bot.
