@@ -13,6 +13,10 @@ Bot's notification system should raise people's awareness about the existing sho
 
 ![Donor notify bot](https://i.ibb.co/VvX1k57/Screenshot-from-2020-06-15-11-23-37.png)
 
+Check the availability of all blood types:
+
+![Check blood availability](https://i.ibb.co/sR1qYzR/Screenshot-from-2020-06-15-11-25-31.png)
+
 This bot could become scalable to the different blood banks in other cities. 
 
 Check it out in action at @donor_notify_bot.
