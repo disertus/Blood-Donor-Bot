@@ -303,10 +303,10 @@ def bot_info(message):
     """Shows all available commands when user types '/help' """
     rst = '/reset - повторно вказати свою групу крові'
     upd = '/update - перевірити запаси крові'
-    intrv = '/intervals - інтервали між кроводачами'
+    itr = '/intervals - інтервали між кроводачами'
     inf = '/info - довідкова інформація'
     loc = '/location - місцезнаходження Банку Крові на карті'
-    bot.send_message(message.chat.id, f'{rst}\n{upd}\n{intrv}\n{loc}\n{inf}')
+    bot.send_message(message.chat.id, f'{rst}\n{upd}\n{itr}\n{loc}\n{inf}')
 
 
 @bot.message_handler(commands=['info'])
@@ -320,7 +320,7 @@ def donation_intervals_info(message):
     """Sends the information about the acceptable intervals between donations"""
     bot.send_message(message.chat.id,
                      'За даними donor.ua, оптимальним є інтервал 2-3 місяці між кровоздачами.\n\n'
-                     'Бот сповіщуватиме користувача за таких умов: \n'
+                     'Бот сповіщуватиме користувача якщо: \n'
                      '1) з моменту останньої здачі пройшло мінімум 2 місяці'
                      '\n2) запас крові певної групи у Банку низький або критичний'
                      '\n3) якщо попередні умови задоволено - сповіщення прийде у найближчий Понеділок о 09:30\n\n'
@@ -449,7 +449,7 @@ def thank_you_for_answers(message):
 
 # Turn on the notifications with specific parameters
 
-notifier = Notifier('Mon', '13')
+notifier = Notifier('Tue', '12')
 
 task1 = threading.Thread(target=notifier.infinite_update_loop, args=(10,))
 task1.start()
