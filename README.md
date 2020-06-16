@@ -17,6 +17,10 @@ Check the availability of all blood types:
 
 ![Check blood availability](https://i.ibb.co/sR1qYzR/Screenshot-from-2020-06-15-11-25-31.png)
 
+Find the geo-location of the Blood Bank on the map:
+
+![Blood bank location](https://i.ibb.co/yfS4cFf/Screenshot-from-2020-06-16-11-29-56.png)
+
 This bot could become scalable to the different blood banks in other cities. 
 
 Check it out in action at @donor_notify_bot.
