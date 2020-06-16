@@ -32,7 +32,7 @@ class Parser:
         # headers are necessary to emulate a 'live user' connection, otherwise produces an error
         page_headers = {
             'User-Agent':
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/81.0.4044.138 Chrome/81.0.4044.138 Safari/537.36"
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/81.0.4044.138 Chrome/81.0.4044.138 Safari/537.36"
         }
         open_url = requests.get(self.page_url, headers=page_headers).text
         soup = BeautifulSoup(open_url, 'lxml')
@@ -147,11 +147,10 @@ def schedule_notification(last_donation_date: str) -> str:
 
 def measure_execution_time(func):
     def wrapper(*args, **kwargs):
-        start = time.time()
+        t1 = time.time()
         func(*args, **kwargs)
-        end = time.time()
-        return print(start - end)
-
+        t2 = time.time()
+        return print(t2 - t1)
     return wrapper
 
 
@@ -175,23 +174,19 @@ class Notifier:
         blood_levels = {key: value for key, value in
                         zip(blood_types, parser_info)}  # transforming two lists into a dict
         user_blood = f"{json_dict[user_id]['blood_type']}{json_dict[user_id]['blood_rh']}"
-        if blood_levels[user_blood] != "Достатньо":
-            print('Схоже, існує необхідність у крові твоєї групи')
+        if blood_levels[user_blood] != 'Достатньо':
             return True
         elif blood_levels[user_blood] == 'Достатньо':
-            print('Схоже, наразі крові твоєї групи достатньо')
             return False
         else:
-            print('An error occurred, sorry pal :(  --- check_if_blood_is_low')
+            pass
 
     def check_if_scheduled_date_is_today(self, user_id, json_dict):
         """Checks if the scheduled notification date is today"""
 
         if json_dict[user_id]['notify_date'] == str(datetime.date.today()):
-            print('Notification date is due today')
             return True
         else:
-            print('check_if_scheduled - error occurred')
             return False
 
     def reschedule_notification(self, user_id: str, json_dict: dict, delay: int):
@@ -200,6 +195,7 @@ class Notifier:
         json_dict[user_id]['notify_date'] = str(datetime.date.today() + datetime.timedelta(days=delay))
         with open('user-table.json', 'w') as json_file:
             json.dump(json_dict, json_file, indent=4)  # added indents make the json file more readable
+        print(f'Notification postponed by {delay} days')
 
     def notify_the_user(self, user_id):
         """Sends a notification each monday including the blood centre location"""
@@ -212,9 +208,9 @@ class Notifier:
                                                                      callback_data='add_two_months')
         keyboard.row(dont_disturb_week)
         keyboard.row(dont_disturb_two_months)
-
-        incentive_text = 'Не забувай: здача крові це 3 врятованих життя' \
-                         ', довідка на 2 вихідних, і чай з печивком (емодзі)'
+        emoji = u'\U0001F609'
+        incentive_text = 'Не забувай: здача крові це 3 врятованих життя, ' \
+                         f'довідка на 2 вихідних, і чай з печивком {emoji}'
         bot.send_message(user_id,
                          'Привіт! З моменту твоєї останньої донації пройшло більше двох місяців, '
                          'а у Київського Центру Крові закінчується '
@@ -224,14 +220,13 @@ class Notifier:
 
     @measure_execution_time
     def decide_when_to_notify(self):
-        """Compares the scheduled date with current one, notifies if blood is low, and reschedules if not"""
+        """Compares the scheduled date with current one, notifies if blood is low and the date is right
+        reschedules the notification if previous conditions are not met"""
 
         for cid in self.user_table.keys():
-            if self.check_if_blood_is_low(cid, self.user_table):
-                if self.check_if_scheduled_date_is_today(cid, self.user_table):
-                    print(time.strftime('%a'))
+            if self.check_if_scheduled_date_is_today(cid, self.user_table):
+                if self.check_if_blood_is_low(cid, self.user_table):
                     if time.strftime('%a') == self.date:
-                        print('Indeed, today is Monday')
                         if time.strftime('%H') == self.time:
                             self.notify_the_user(cid)
                             self.reschedule_notification(cid, self.user_table, 7)
@@ -239,25 +234,16 @@ class Notifier:
                             pass
                     else:
                         self.reschedule_notification(cid, self.user_table, 1)
-                    # schedule.every().monday.at('09:30').do(notify)
-            #         elif blood_low is False:
-            #             return reschedule_notification(cid)
-            #         else:
-            #             print('ERROR - could not define if the blood level is low')
-            #             raise TypeError
+                else:
+                    self.reschedule_notification(cid, self.user_table, 1)
             else:
-                print('Sorry pal, the notification is not due today')
+                pass
 
     def infinite_update_loop(self, delay):
         schedule.every(delay).minutes.do(self.decide_when_to_notify)
         while True:
             schedule.run_pending()
             time.sleep(300)
-
-    def get_user_contacts(self):
-        # TODO: Optional, users may be unwilling to give up personal information
-        # user_name, phone_number
-        pass
 
 
 def unexpected_entry_handler(chat_id):
@@ -349,6 +335,20 @@ def check_blood_availability(message):
         f'I (–) : {blood_level[4]}\nII (–) : {blood_level[5]}\nIII (–) : {blood_level[6]}\nIV (–) : {blood_level[7]}'
     )
     # TODO: apply markup formatting to the text
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_handler(call):
+    if call.data == 'add_one_week':
+        notifier.reschedule_notification(str(call.message.chat.id), user, 7)
+        bot.send_message(call.message.chat.id, u'\U0001F44D')
+        bot.send_message(call.message.chat.id, 'Відкладаю на тиждень')
+    elif call.data == 'add_two_months':
+        notifier.reschedule_notification(str(call.message.chat.id), user, 60)
+        bot.send_message(call.message.chat.id, u'\U0001F44D')
+        bot.send_message(call.message.chat.id, 'Відкладаю на два місяці')
+    else:
+        print('An error in call back handler has occurred')
 
 
 @bot.message_handler(commands=['reset'])
@@ -449,9 +449,9 @@ def thank_you_for_answers(message):
 
 # Turn on the notifications with specific parameters
 
-notifier = Notifier('Tue', '12')
+notifier = Notifier('Mon', '10')
 
 task1 = threading.Thread(target=notifier.infinite_update_loop, args=(10,))
 task1.start()
 
-bot.polling(none_stop=True, interval=1)
+bot.polling(none_stop=True, interval=2)
