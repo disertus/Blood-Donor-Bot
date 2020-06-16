@@ -19,7 +19,7 @@ Check the availability of all blood types:
 
 Find the geo-location of the Blood Bank on the map:
 
-![Blood bank location](https://i.ibb.co/yfS4cFf/Screenshot-from-2020-06-16-11-29-56.png)
+![Blood bank location](https://i.ibb.co/DVprHfV/Screenshot-from-2020-06-16-11-29-56.png)
 
 This bot could become scalable to the different blood banks in other cities. 
 
