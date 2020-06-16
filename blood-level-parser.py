@@ -151,6 +151,7 @@ def measure_execution_time(func):
         func(*args, **kwargs)
         end = time.time()
         return print(start - end)
+
     return wrapper
 
 
@@ -292,8 +293,8 @@ def greeting_message(message):
     # Displays the Telegram @username and f-l-names of the user, this info is not stored anywhere
     print(
         '*' * 10,
-        f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}"',
-        f'logged in on {datetime.date.today()}',
+        f'@{message.chat.username} ',
+        f'first logged in on {datetime.date.today()}',
         '*' * 10)
 
 
@@ -312,6 +313,19 @@ def bot_info(message):
 def donor_info(message):
     """Sends a link to the Municipal Blood Centre for more information"""
     bot.send_message(message.chat.id, 'Більше інформації про процедуру та пункти здачі крові на kmck.kiev.ua')
+
+
+@bot.message_handler(commands=['intervals'])
+def donation_intervals_info(message):
+    """Sends the information about the acceptable intervals between donations"""
+    bot.send_message(message.chat.id,
+                     'За даними donor.ua, оптимальним є інтервал 2-3 місяці між кровоздачами.\n\n'
+                     'Бот сповіщуватиме користувача за таких умов: \n'
+                     '1) з моменту останньої здачі пройшло мінімум 2 місяці'
+                     '\n2) запас крові певної групи у Банку низький або критичний'
+                     '\n3) якщо попередні умови задоволено - сповіщення прийде у найближчий Понеділок о 09:30\n\n'
+                     'Отримавши сповіщення, користувач може відкласти його на тиждень (кров не здав, нагадайте ще раз)'
+                     ', або на два місяці (кров здав, до зустрічі через 2+ місяці)')
 
 
 @bot.message_handler(commands=['location'])
