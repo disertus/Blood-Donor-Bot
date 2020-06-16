@@ -9,7 +9,7 @@ Bot's notification system should raise people's awareness about the existing sho
 - Collects the data about users' blood type
 - Schedules the donations using the info about users' last donation
 - Informs the users when there is a lack of blood at the blood bank if their blood type matches
-- Collects the chronological data about the availability of specific blood types
+- Stores the chronological data about the availability of specific blood types into MySQL Server (possibility of further data analysis)
 
 ![Donor notify bot](https://i.ibb.co/VvX1k57/Screenshot-from-2020-06-15-11-23-37.png)
 
