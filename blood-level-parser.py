@@ -251,7 +251,7 @@ class Notifier:
         schedule.every(delay).minutes.do(self.decide_when_to_notify)
         while True:
             schedule.run_pending()
-            time.sleep(15)
+            time.sleep(300)
 
     def get_user_contacts(self):
         # TODO: Optional, users may be unwilling to give up personal information
@@ -274,6 +274,27 @@ def dummy_bot_error(chat_id):
 def save_to_json_db(dictionary: dict):
     with open('user-table.json', 'w') as json_file:
         json.dump(dictionary, json_file, indent=4)
+
+
+def greeting_message(message):
+    cid = message.chat.id
+    blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
+    blood_types_keyboard.row('I - перша', 'II - друга')
+    blood_types_keyboard.row('III - третя', 'IV - четверта')
+    msg = bot.send_message(
+        cid, 'Привіт! Готовий рятувати життя? \nВкажи свою групу крові: ', reply_markup=blood_types_keyboard)
+    bot.register_next_step_handler(msg, ask_blood_rh)
+    user[str(cid)] = dict(blood_type=None,
+                          blood_rh=None,
+                          last_donated=None,
+                          bot_stage=0)
+
+    # Displays the Telegram @username and f-l-names of the user, this info is not stored anywhere
+    print(
+        '*' * 10,
+        f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}"',
+        f'logged in on {datetime.date.today()}',
+        '*' * 10)
 
 
 @bot.message_handler(commands=['help'])
@@ -329,30 +350,17 @@ def welcome_message(message):
     """Displays available blood types and asks to choose one from the list"""
 
     cid = message.chat.id
-    blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
-    blood_types_keyboard.row('I - перша', 'II - друга')
-    blood_types_keyboard.row('III - третя', 'IV - четверта')
-
     # TODO: check the bot_stage of the user
-    if user[str(cid)]['bot_stage'] == 3:
-        bot.send_message(cid, 'Схоже, ти вже в базі користувачів.\n'
-                              'Дякую що допомагаєш рятувати життя!\n\n'
-                              'Якщо хочеш оновити дані про себе - тисни /reset')
-    else:
-        msg = bot.send_message(
-            cid, 'Привіт! Готовий рятувати життя? \nВкажи свою групу крові: ', reply_markup=blood_types_keyboard)
-        bot.register_next_step_handler(msg, ask_blood_rh)
-        user[str(cid)] = dict(blood_type=None,
-                              blood_rh=None,
-                              last_donated=None,
-                              bot_stage=0)
-
-        # Displays the Telegram @username and f-l-names of the user, this info is not stored anywhere
-        print(
-            '*' * 10,
-            f'@{message.chat.username} AKA "{message.chat.first_name} {message.chat.last_name}"',
-            f'logged in on {datetime.date.today()}',
-            '*' * 10)
+    # Implement a try/except statement, reverse the if/else conditions
+    try:
+        if user[str(cid)]['bot_stage'] == 3:
+            bot.send_message(cid, 'Схоже, ти вже в базі користувачів.\n'
+                                  'Дякую що допомагаєш рятувати життя!\n\n'
+                                  'Якщо хочеш оновити дані про себе - тисни /reset')
+        elif user[str(cid)]['bot_stage'] != 3:
+            return greeting_message(message)
+    except KeyError:
+        return greeting_message(message)
 
     # TODO: create a log file recording all the actions (use standard library)
 
@@ -429,9 +437,7 @@ def thank_you_for_answers(message):
 
 notifier = Notifier('Mon', '13')
 
-task1 = threading.Thread(target=notifier.infinite_update_loop, args=(1,))
+task1 = threading.Thread(target=notifier.infinite_update_loop, args=(10,))
 task1.start()
 
 bot.polling(none_stop=True, interval=1)
-
-# bot.set_update_listener(check_if_scheduled_date_is_today)
