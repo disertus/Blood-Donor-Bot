@@ -16,8 +16,6 @@ import config
 
 
 # Parser and Database code ##########################
-
-
 class Parser:
     """Parses the page and saves the data that has been collected into the mysqldb"""
 
@@ -41,14 +39,7 @@ class Parser:
     def clear_html_tags(self) -> list:
         """strips all the tags surrounding relevant text strings"""
 
-        parsed_tag = [item.string for item in self.parse_a_page().find_all(self.tag)]
-        return parsed_tag
-
-
-class DataFrame:
-    def convert_into_data_frame(self):
-        # TODO: read the data from the mysqldb / or just use the latest collected data
-        pass
+        return [item.string for item in self.parse_a_page().find_all(self.tag)]
 
 
 class MysqlDatabase:
@@ -100,15 +91,22 @@ class MysqlDatabase:
         session.commit()
 
 
+class DataFrame:
+    def convert_into_data_frame(self):
+        # TODO: read the data from the mysqldb / or just use the latest collected data
+        pass
+
+# Performs the parsing and returns the results as a list
 parser = Parser('http://kmck.kiev.ua/', 'h4')
 parser.clear_html_tags()
 
+# Part responsible for the communication with MySQL database
 # mysqldb = MysqlDatabase(config.db_credentials)
 # mysqldb.create_table()
 # mysqldb.save_bloodlvl_to_mysql()
 
-# Telegram Bot code #########################
 
+# Telegram Bot code #########################
 bot = telebot.TeleBot(config.token, True, 2)
 try:
     with open('user-table.json', 'r') as f:
@@ -117,41 +115,12 @@ except FileNotFoundError:
     user = dict()
 
 
-def calculate_last_donation_date(message):
-    """Defines the date of last donation in datetime format"""
-
-    cid = message.chat.id
-    msg = message.text
-    if msg == '2+ місяців тому':
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=60))
-        return str(last_donated_date)
-    elif msg == 'Місяць тому':
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=30))
-        return str(last_donated_date)
-    elif msg == "Два тижні тому":
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=14))
-        return str(last_donated_date)
-    elif msg == "Тиждень тому":
-        last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
-        return str(last_donated_date)
-    else:
-        return unexpected_entry_handler(cid)
-
-
-def schedule_notification(last_donation_date: str) -> str:
-    """Defines the notification date based on the date of last donation"""
-
-    date_object = datetime.datetime.strptime(last_donation_date, '%Y-%m-%d')
-    return str(date_object.date() + datetime.timedelta(days=60))
-
-
 def measure_execution_time(func):
     def wrapper(*args, **kwargs):
         t1 = time.time()
         func(*args, **kwargs)
         t2 = time.time()
-        print(time.strftime('%H:%M, %d.%m'))
-        return print(t2 - t1)
+        return print(t2 - t1, time.strftime('%H:%M, %d.%m'))
     return wrapper
 
 
@@ -241,13 +210,16 @@ class Notifier:
                 pass
 
     def infinite_update_loop(self, delay):
-        schedule.every(delay).minutes.do(self.decide_when_to_notify)
-        while True:
-            schedule.run_pending()
-            time.sleep(300)
+        try:
+            schedule.every(delay).minutes.do(self.decide_when_to_notify)
+            while True:
+                schedule.run_pending()
+                time.sleep(300)
+        except Exception as e:
+            print(e)
 
 
-def unexpected_entry_handler(chat_id):
+def handle_unexpected_entry(chat_id):
     user[str(chat_id)]['bot_stage'] = 0
     back_to_start = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     back_to_start.add('/start')
@@ -255,7 +227,7 @@ def unexpected_entry_handler(chat_id):
                      reply_markup=back_to_start)
 
 
-def dummy_bot_error(chat_id):
+def send_dummy_bot_error(chat_id):
     bot.send_message(chat_id, 'Дурник-бот не зрозумів :( ')
 
 
@@ -264,7 +236,7 @@ def save_to_json_db(dictionary: dict):
         json.dump(dictionary, json_file, indent=4)
 
 
-def greeting_message(message):
+def send_greeting_message(message):
     cid = message.chat.id
     blood_types_keyboard = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     blood_types_keyboard.row('I - перша', 'II - друга')
@@ -283,6 +255,34 @@ def greeting_message(message):
         f'@{message.chat.username} ',
         f'first logged in on {datetime.date.today()}',
         '*' * 10)
+
+
+def calculate_last_donation_date(message):
+    """Defines the date of last donation in datetime format"""
+
+    cid = message.chat.id
+    msg = message.text
+    if msg == '2+ місяців тому':
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=60))
+        return str(last_donated_date)
+    elif msg == 'Місяць тому':
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=30))
+        return str(last_donated_date)
+    elif msg == "Два тижні тому":
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=14))
+        return str(last_donated_date)
+    elif msg == "Тиждень тому":
+        last_donated_date = (datetime.date.today() - datetime.timedelta(days=7))
+        return str(last_donated_date)
+    else:
+        return handle_unexpected_entry(cid)
+
+
+def schedule_notification(last_donation_date: str) -> str:
+    """Defines the notification date based on the date of last donation"""
+
+    date_object = datetime.datetime.strptime(last_donation_date, '%Y-%m-%d')
+    return str(date_object.date() + datetime.timedelta(days=60))
 
 
 @bot.message_handler(commands=['help'])
@@ -357,7 +357,7 @@ def delete_user_id(message):
     """Resets the bot_stage info in the user dict and json db"""
 
     cid = message.chat.id
-    return unexpected_entry_handler(cid)
+    return handle_unexpected_entry(cid)
 
 
 @bot.message_handler(commands=['start'])
@@ -373,9 +373,9 @@ def welcome_message(message):
                                   'Дякую що допомагаєш рятувати життя!\n\n'
                                   'Якщо хочеш оновити дані про себе - тисни /reset')
         elif user[str(cid)]['bot_stage'] != 3:
-            return greeting_message(message)
+            return send_greeting_message(message)
     except KeyError:
-        return greeting_message(message)
+        return send_greeting_message(message)
 
     # TODO: create a log file recording all the actions (use standard library)
 
@@ -397,8 +397,8 @@ def ask_blood_rh(message):
         user[str(cid)]['bot_stage'] = 1
         print(f'Blood type: {message.text}')
     else:
-        dummy_bot_error(cid)
-        unexpected_entry_handler(cid)
+        send_dummy_bot_error(cid)
+        handle_unexpected_entry(cid)
 
 
 def last_donated(message):
@@ -420,8 +420,8 @@ def last_donated(message):
         print(f'Blood Rh: {message.text}')
 
     else:
-        dummy_bot_error(cid)
-        unexpected_entry_handler(cid)
+        send_dummy_bot_error(cid)
+        handle_unexpected_entry(cid)
 
 
 def thank_you_for_answers(message):
@@ -444,17 +444,18 @@ def thank_you_for_answers(message):
         user[str(cid)]['bot_stage'] = 3
         save_to_json_db(user)
     else:
-        dummy_bot_error(cid)
-        unexpected_entry_handler(cid)
+        send_dummy_bot_error(cid)
+        handle_unexpected_entry(cid)
 
 
-# Turn on the notifications with specific parameters
-
+# Turns on the notifications with specific parameters
 notifier = Notifier('Mon', '10')
 
+# Launches the infinite update loop scheduling and checking notification statuses in a separate thread
 task1 = threading.Thread(target=notifier.infinite_update_loop, args=(10,))
 task1.start()
 
+# Hack ensuring that the bot will not crush when a connection error happens on Telegram's side
 while 1:
     try:
         bot.polling(none_stop=True, interval=2)
