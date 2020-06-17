@@ -150,6 +150,7 @@ def measure_execution_time(func):
         t1 = time.time()
         func(*args, **kwargs)
         t2 = time.time()
+        print(time.strftime('%H:%M, %d.%m'))
         return print(t2 - t1)
     return wrapper
 
@@ -454,4 +455,9 @@ notifier = Notifier('Mon', '10')
 task1 = threading.Thread(target=notifier.infinite_update_loop, args=(10,))
 task1.start()
 
-bot.polling(none_stop=True, interval=2)
+while 1:
+    try:
+        bot.polling(none_stop=True, interval=2)
+    except Exception as e:
+        print(e)
+        time.sleep(5)
