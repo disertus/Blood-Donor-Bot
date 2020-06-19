@@ -30,7 +30,7 @@ class Parser:
         # headers are necessary to emulate a 'live user' connection, otherwise produces an error
         page_headers = {
             'User-Agent':
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/81.0.4044.138 Chrome/81.0.4044.138 Safari/537.36"
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) snap Chromium/81.0.4044.138 Chrome/81.0.4044.138 Safari/537.36"
         }
         open_url = requests.get(self.page_url, headers=page_headers).text
         soup = BeautifulSoup(open_url, 'lxml')
@@ -96,6 +96,7 @@ class DataFrame:
         # TODO: read the data from the mysqldb / or just use the latest collected data
         pass
 
+
 # Performs the parsing and returns the results as a list
 parser = Parser('http://kmck.kiev.ua/', 'h4')
 parser.clear_html_tags()
@@ -121,20 +122,21 @@ def measure_execution_time(func):
         func(*args, **kwargs)
         t2 = time.time()
         return print(t2 - t1, time.strftime('%H:%M, %d.%m'))
+
     return wrapper
 
 
 class Notifier:
 
-    def __init__(self, notify_date, notify_time):
+    def __init__(self, notify_date, notify_time, json_dict):
         self.date = notify_date
         self.time = notify_time
-        self.user_table = self.dict_from_json('user-table.json')
+        self.user_table = json_dict
 
-    def dict_from_json(self, filename: str):
-        with open(filename, 'r') as file:
-            user_info = json.load(file)
-        return user_info
+    # def dict_from_json(self, filename: str):
+    #     with open(filename, 'r+') as file:
+    #         user_info = json.load(file)
+    #     return user_info
 
     def check_if_blood_is_low(self, user_id: str, json_dict: dict):
         """Checks if parsed blood level corresponding to users blood is low"""
@@ -163,7 +165,7 @@ class Notifier:
         """Reschedules the notification to the next week"""
 
         json_dict[user_id]['notify_date'] = str(datetime.date.today() + datetime.timedelta(days=delay))
-        with open('user-table.json', 'w') as json_file:
+        with open('user-table.json', 'w+') as json_file:
             json.dump(json_dict, json_file, indent=4)  # added indents make the json file more readable
         print(f'Notification postponed by {delay} days')
 
@@ -212,11 +214,13 @@ class Notifier:
     def infinite_update_loop(self, delay):
         try:
             schedule.every(delay).minutes.do(self.decide_when_to_notify)
-            while True:
+            while 1:
                 schedule.run_pending()
                 time.sleep(300)
         except Exception as e:
-            print(e)
+            print(f'Error in the background thread: \n{e}')
+            time.sleep(60)
+            return background_processing()
 
 
 def handle_unexpected_entry(chat_id):
@@ -232,7 +236,7 @@ def send_dummy_bot_error(chat_id):
 
 
 def save_to_json_db(dictionary: dict):
-    with open('user-table.json', 'w') as json_file:
+    with open('user-table.json', 'w+') as json_file:
         json.dump(dictionary, json_file, indent=4)
 
 
@@ -247,7 +251,8 @@ def send_greeting_message(message):
     user[str(cid)] = dict(blood_type=None,
                           blood_rh=None,
                           last_donated=None,
-                          bot_stage=0)
+                          bot_stage=0,
+                          notify_date=None)
 
     # Displays the Telegram @username and f-l-names of the user, this info is not stored anywhere
     print(
@@ -307,11 +312,11 @@ def donation_intervals_info(message):
     """Sends the information about the acceptable intervals between donations"""
     bot.send_message(message.chat.id,
                      'За даними donor.ua, оптимальним є інтервал 2-3 місяці між кровоздачами.\n\n'
-                     'Бот сповіщуватиме користувача якщо: \n'
+                     'Бот сповіщуватиме тебе якщо: \n'
                      '1) з моменту останньої здачі пройшло мінімум 2 місяці'
-                     '\n2) запас крові певної групи у Банку низький або критичний'
-                     '\n3) якщо попередні умови задоволено - сповіщення прийде у найближчий Понеділок о 09:30\n\n'
-                     'Отримавши сповіщення, користувач може відкласти його на тиждень (кров не здав, нагадайте ще раз)'
+                     '\n2) запас крові твоєї групи у Банку низький або критичний'
+                     '\n3) якщо попередні умови задоволено - сповіщення прийде у найближчий Понеділок о 10:00\n\n'
+                     'Отримавши сповіщення, ти можеш відкласти його на тиждень (кров не здав, нагадайте ще раз)'
                      ', або на два місяці (кров здав, до зустрічі через 2+ місяці)')
 
 
@@ -449,16 +454,21 @@ def thank_you_for_answers(message):
 
 
 # Turns on the notifications with specific parameters
-notifier = Notifier('Mon', '10')
+notifier = Notifier('Mon', '10', user)
+
 
 # Launches the infinite update loop scheduling and checking notification statuses in a separate thread
-task1 = threading.Thread(target=notifier.infinite_update_loop, args=(10,))
-task1.start()
+def background_processing():
+    task1 = threading.Thread(target=notifier.infinite_update_loop, args=(10,))
+    return task1.start()
+
+
+background_processing()
 
 # Hack ensuring that the bot will not crush when a connection error happens on Telegram's side
 while 1:
     try:
-        bot.polling(none_stop=True, interval=2)
+        bot.polling(none_stop=True, interval=1.5)
     except Exception as e:
-        print(e)
+        print(f'Error in the polling process: \n{e}')
         time.sleep(5)
