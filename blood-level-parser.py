@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 import config
 
 
-# Parser and Database code ##########################
+# Parser and Database code ###########################
 class Parser:
     """Parses the page and saves the data that has been collected into the mysqldb"""
 
