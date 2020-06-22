@@ -133,18 +133,12 @@ class Notifier:
         self.time = notify_time
         self.user_table = json_dict
 
-    # def dict_from_json(self, filename: str):
-    #     with open(filename, 'r+') as file:
-    #         user_info = json.load(file)
-    #     return user_info
-
     def check_if_blood_is_low(self, user_id: str, json_dict: dict):
-        """Checks if parsed blood level corresponding to users blood is low"""
+        """Checks if parsed blood level, that is corresponding to user's blood type is low"""
 
-        parser_info = parser.clear_html_tags()
         blood_types = ['I(+)', 'II(+)', 'III(+)', 'IV(+)', 'I(-)', 'II(-)', 'III(-)', 'IV(-)']
         blood_levels = {key: value for key, value in
-                        zip(blood_types, parser_info)}  # transforming two lists into a dict
+                        zip(blood_types, parser.clear_html_tags())}  # transforming two lists into a dict
         user_blood = f"{json_dict[user_id]['blood_type']}{json_dict[user_id]['blood_rh']}"
         if blood_levels[user_blood] != 'Достатньо':
             return True
@@ -162,7 +156,7 @@ class Notifier:
             return False
 
     def reschedule_notification(self, user_id: str, json_dict: dict, delay: int):
-        """Reschedules the notification to the next week"""
+        """Reschedules the notification by a specified period of time (delay)"""
 
         json_dict[user_id]['notify_date'] = str(datetime.date.today() + datetime.timedelta(days=delay))
         with open('user-table.json', 'w+') as json_file:
@@ -171,7 +165,6 @@ class Notifier:
 
     def notify_the_user(self, user_id):
         """Sends a notification each monday including the blood centre location"""
-        # TODO: include send_location of the blood bank
 
         keyboard = telebot.types.InlineKeyboardMarkup()
         dont_disturb_week = telebot.types.InlineKeyboardButton(text='Нагадай пізніше (Тиждень)',
