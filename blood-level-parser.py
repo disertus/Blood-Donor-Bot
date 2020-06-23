@@ -132,6 +132,7 @@ class Notifier:
         self.date = notify_date
         self.time = notify_time
         self.user_table = json_dict
+        self.lock = threading.Lock()
 
     def check_if_blood_is_low(self, user_id: str, json_dict: dict):
         """Checks if parsed blood level, that is corresponding to user's blood type is low"""
@@ -158,9 +159,11 @@ class Notifier:
     def reschedule_notification(self, user_id: str, json_dict: dict, delay: int):
         """Reschedules the notification by a specified period of time (delay)"""
 
+        self.lock.acquire()
         json_dict[user_id]['notify_date'] = str(datetime.date.today() + datetime.timedelta(days=delay))
         with open('user-table.json', 'w+') as json_file:
             json.dump(json_dict, json_file, indent=4)  # added indents make the json file more readable
+        self.lock.release()
         print(f'Notification postponed by {delay} days')
 
     def notify_the_user(self, user_id):
@@ -217,7 +220,11 @@ class Notifier:
 
 
 def handle_unexpected_entry(chat_id):
+    lock = threading.Lock()
+    lock.acquire()
     user[str(chat_id)]['bot_stage'] = 0
+    lock.release()
+
     back_to_start = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
     back_to_start.add('/start')
     bot.send_message(chat_id, 'Натисни /start і вкажи свої дані знову',
@@ -229,8 +236,11 @@ def send_dummy_bot_error(chat_id):
 
 
 def save_to_json_db(dictionary: dict):
+    lock = threading.Lock()
+    lock.acquire()
     with open('user-table.json', 'w+') as json_file:
         json.dump(dictionary, json_file, indent=4)
+    lock.release()
 
 
 def send_greeting_message(message):
@@ -241,11 +251,14 @@ def send_greeting_message(message):
     msg = bot.send_message(
         cid, 'Привіт! Готовий рятувати життя? \nВкажи свою групу крові: ', reply_markup=blood_types_keyboard)
     bot.register_next_step_handler(msg, ask_blood_rh)
+    lock = threading.Lock()
+    lock.acquire()
     user[str(cid)] = dict(blood_type=None,
                           blood_rh=None,
                           last_donated=None,
                           bot_stage=0,
                           notify_date=None)
+    lock.release()
 
     # Displays the Telegram @username and f-l-names of the user, this info is not stored anywhere
     print(
@@ -391,8 +404,11 @@ def ask_blood_rh(message):
         msg = bot.send_message(cid, 'А тепер вкажи свій резус-фактор:', reply_markup=blood_types_keyboard)
         bot.register_next_step_handler(msg, last_donated)
 
+        lock = threading.Lock()
+        lock.acquire()
         user[str(cid)]['blood_type'] = str(message.text)
         user[str(cid)]['bot_stage'] = 1
+        lock.release()
         print(f'Blood type: {message.text}')
     else:
         send_dummy_bot_error(cid)
@@ -413,8 +429,11 @@ def last_donated(message):
                                reply_markup=donation_dates_keyboard)
         bot.register_next_step_handler(msg, thank_you_for_answers)
 
+        lock = threading.Lock()
+        lock.acquire()
         user[str(cid)]['blood_rh'] = str(message.text)
         user[str(cid)]['bot_stage'] = 2
+        lock.release()
         print(f'Blood Rh: {message.text}')
 
     else:
@@ -437,10 +456,13 @@ def thank_you_for_answers(message):
 
         print(f'Last donated: {message.text}\n', '*' * 80)
 
+        lock = threading.Lock()
+        lock.acquire()
         user[str(cid)]['last_donated'] = calculate_last_donation_date(message)
         user[str(cid)]['notify_date'] = schedule_notification(user[str(cid)]['last_donated'])
         user[str(cid)]['bot_stage'] = 3
         save_to_json_db(user)
+        lock.release()
     else:
         send_dummy_bot_error(cid)
         handle_unexpected_entry(cid)
